@@ -61,6 +61,12 @@ const router = createRouter({
       meta: { title: '마이페이지' },
       component: () => import('@/views/user/MyPage.vue'),
     },
+    {
+      name: 'notify',
+      path: '/notify',
+      meta: { title: '알림 등록' },
+      component: () => import('@/views/notify.vue'),
+    },
   ],
 })
 
