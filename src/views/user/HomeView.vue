@@ -54,6 +54,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import api from '@/plugins/axiosinterceptor';
 
 import LeftSideBar from '@/components/layout/LeftSideBar.vue';
 import Header from '@/components/layout/Header.vue';
@@ -88,6 +89,71 @@ const isListOpen = ref(true);
 const selectedPlace = ref(null);
 const favorites = ref([]);
 
+
+const fetchBookmarks = async () => {
+  try {
+    const res = await api.get('/bookmark/list');
+
+    favorites.value = res.data.map(bookmark => ({
+      idx: bookmark.idx,  // bookmark DB의 idx
+      id: bookmark.placeId, // 카카오맵 DB의 ID
+      name: bookmark.name,
+      address: bookmark.location,
+      lat: bookmark.latitude,
+      lng: bookmark.longitude
+    }));
+  } catch (error) {
+    console.error('북마크 목록 불러오기 실패:', error);
+  }
+};
+
+onMounted(() => {
+  if (route.query.mode) {
+    mode.value = route.query.mode;
+    router.replace({ path: '/' });
+  }
+  
+  fetchBookmarks();
+});
+
+const handleToggleFavorite = async (item) => {
+
+  const existingIdx = favorites.value.findIndex(f => f.id === item.id);
+
+  if (existingIdx > -1) {
+    const targetIdx = favorites.value[existingIdx].idx;
+    try {
+      await api.delete(`/bookmark/delete/${targetIdx}`);
+      favorites.value.splice(existingIdx, 1); 
+    } catch (error) {
+      console.error('북마크 삭제 실패:', error);
+    }
+  } else {
+    const bookmarkData = {
+      placeId: item.id,
+      name: item.name,
+      location: item.address,
+      latitude: item.lat,
+      longitude: item.lng
+    };
+
+    try {
+      const res = await api.post('/bookmark/register', bookmarkData);
+      
+      favorites.value.push({
+        idx: res.data.idx,
+        id: item.id,
+        name: item.name,
+        address: item.address,
+        lat: item.lat,
+        lng: item.lng
+      });
+    } catch (error) {
+      console.error('북마크 등록 실패:', error);
+      alert('북마크 등록을 위해 로그인이 필요합니다.');
+    }
+  }
+};
 const handleSearch = (keyword) => {
   if (mapRef.value) mapRef.value.searchPlaces(keyword);
 };
@@ -110,12 +176,12 @@ const clearSelection = () => {
   if (mapRef.value) mapRef.value.closeCard();
 };
 
-const handleToggleFavorite = (item) => {
-  const idx = favorites.value.findIndex(f => f.id === item.id);
-  if (idx > -1) favorites.value.splice(idx, 1);
-  else favorites.value.push(item);
-  localStorage.setItem('myFavorites', JSON.stringify(favorites.value));
-};
+// const handleToggleFavorite = (item) => {
+//   const idx = favorites.value.findIndex(f => f.id === item.id);
+//   if (idx > -1) favorites.value.splice(idx, 1);
+//   else favorites.value.push(item);
+//   localStorage.setItem('myFavorites', JSON.stringify(favorites.value));
+// };
 
 const changeMode = (newMode) => {
   mode.value = newMode;
