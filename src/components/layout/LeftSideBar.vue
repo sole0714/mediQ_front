@@ -15,11 +15,10 @@ const changeTab = (tabName) => {
   emit('change-tab', tabName); 
 };
 
-// 💡 복잡했던 username computed 로직을 완전히 삭제했습니다!
-// (이제 authStore.getUsername()이 모든 걸 알아서 해줍니다)
 
-const handleLogout = () => {
-  authStore.logout();
+const handleLogout = async () => {
+  await authStore.logout();  // 서버 로그아웃 처리 및 스토어 비우기가 완전히 끝날 때까지 기다림
+  window.location.reload();  // 화면 새로고침
 };
 
 onMounted(() => {
