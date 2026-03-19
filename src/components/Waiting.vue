@@ -1,5 +1,8 @@
 <script setup>
 import { reactive, ref, computed, onMounted, defineProps, watch } from 'vue'
+import axios from 'axios'
+
+const userId = ref('')
 
 const props = defineProps(['initialData'])
 const wsUri = "wss://www.mediq.kro.kr/ws/chat";
@@ -169,6 +172,33 @@ function setNickname() {
   nicknameConfirmed.value = true
 }
 
+const subscribePush = async () => {
+  const permission = await Notification.requestPermission()
+  if (permission !== 'granted') {
+    console.log("권한 없음")
+
+    return
+  }
+
+  await navigator.serviceWorker.register('/service-worker.js')
+  const VAPID_PUBLIC_KEY = 'BEyaCMDqIkd76kJ-WmsXJd2eI2JQEt-Ilx3kzRF-4Sgzu0_2zZkVY3Iesc3DoL5FDZ2MkEGsMhYAA85Q92HvOcw'
+
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription()
+
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: VAPID_PUBLIC_KEY
+    })
+
+    console.log(JSON.stringify(subscription))
+    await axios.post('http://localhost:8080/push/sub/${currentNickname.value}', subscription)
+  }
+
+}
+
+
 
 onMounted(() => {
   initFromProps()
@@ -267,6 +297,10 @@ watch(() => props.initialData, () => {
 
             <button @click="joinQueue" class="btn-primary-lg">
               대기 접수하기
+            </button>
+            <br><br>
+            <button @click="subscribePush" class="btn-primary-lg">
+              알림 받기
             </button>
           </div>
 
