@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full bg-slate-50">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediQ</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=c407f5265db4c0fecda71e5e0376f2f1&libraries=services"></script>
+
+    <style>
+    body { font-family: 'Pretendard', sans-serif; }
+    .hide-scroll::-webkit-scrollbar { display:none; }
+    .hide-scroll { -ms-overflow-style:none; scrollbar-width:none; }
+
+    .pin-marker {
+      width: 36px; height: 36px;
+      border-radius: 50% 50% 50% 0;
+
+      position: absolute;
+      transform: rotate(-45deg);
+      left: 50%; top: 50%;
+      margin: -18px 0 0 -18px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.2s;
+    }
+    
+    .overlay-group:hover .pin-marker {
+      transform: rotate(-45deg) scale(1.1) translateY(-5px);
+      box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+    }
+
+    .pin-marker i {
+      transform: rotate(45deg);
+      font-size: 16px;
+      margin-top: 2px;
+      margin-left: 2px;
+      color: #f6eeee !important;
+    }
+
+    .info-bubble {
+      position: absolute;
+      bottom: 50px;
+      left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(0,0,0,0.05);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      padding: 6px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 800; color: #334155;
+      z-index: 20;
+    }
+    .info-bubble::after {
+      content: ''; position: absolute; bottom: -5px; left: 50%;
+      transform: translateX(-50%);
+      border-width: 6px 6px 0; border-style: solid;
+      border-color: rgba(255,255,255,0.95) transparent transparent transparent;
+    }
+
+    .my-location-pulse {
+      width: 20px; height: 20px; background: #3b82f6; 
+      border-radius: 50%; border: 3px solid #fff;
+      box-shadow: 0 0 0 rgba(59, 130, 246, 0.4); 
+      animation: pulse-blue 2s infinite;
+    }
+    @keyframes pulse-blue { 
+      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 
+      70% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); } 
+      100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } 
+    }
+</style>
+
+  </head>
+  <body class="h-full overflow-hidden">
+    <div id="app" class="h-full"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
