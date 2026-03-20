@@ -170,31 +170,40 @@ function joinQueue() {
     hospital: hospital.id,
     nickname: currentNickname.value
   }))
-  
-
-  
-
-
 
 
   addToQueue(currentNickname.value)
   processStep.value = 'registered'
 }
 
-function cancelQueue() {
+async function cancelQueue() {
   if (!confirm('대기를 취소하시겠습니까?')) return
   
-  if (websocket && websocket.readyState === WebSocket.OPEN) {
-    websocket.send(JSON.stringify({
-      action: 'cancel',
-      hospital: hospital.id,
-      nickname: currentNickname.value
-    }))
+  const payload = {
+    userIdx : currentNickname.value,
+    hospitalIdx: searchKeyword.value
   }
 
-  removeFromQueue(currentNickname.value)
-  processStep.value = 'input'
-  currentNickname.value = ''
+  try {
+    const response = await axios.delete(`http://localhost:8080/waiting/register`, { data: payload});
+
+    console.log("삭제 성공 : ", response.data);
+
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      websocket.send(JSON.stringify({
+        action: 'cancel',
+        hospital: hospital.id,
+        nickname: currentNickname.value
+      }))
+    }
+
+    removeFromQueue(currentNickname.value)
+    processStep.value = 'input'
+    currentNickname.value = ''
+  } catch (error) {
+    alert("대기 취소 중 오류가 발생했습니다");
+  }
+  
 }
 
 // 뒤로가기
