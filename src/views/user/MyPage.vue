@@ -14,9 +14,8 @@ const goToMain = () => {
 };
 
 const logout = async () => {
-    await authStore.logout();
-    alert("로그아웃 되었습니다."); 
-    router.push('/'); 
+    alert("로그아웃 되었습니다."); // 알림을 먼저 띄우고
+    await authStore.logout(); // 스토어의 로그아웃 실행
 };
 
 const currentTab = ref('medical-history');
@@ -306,13 +305,40 @@ onUnmounted(() => {
                                     <h4 class="text-xl font-bold mb-6 flex items-center gap-2 text-emerald-600">
                                         <i class="fa-solid fa-receipt"></i> 결제 내역
                                     </h4>
-                                    <div v-if="billingData.length === 0" class="text-slate-600 text-sm">최근 결제 내역이 없습니다.</div>
+                                    
+                                    <div v-if="!billingData || billingData.length === 0" class="text-slate-600 text-sm bg-slate-50 p-6 rounded-2xl text-center">
+                                        최근 결제 내역이 없습니다.
+                                    </div>
+                                    
+                                    <div v-else class="space-y-4">
+                                        <div v-for="(bill, index) in billingData" :key="index" 
+                                             class="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex items-center justify-between hover:border-emerald-200 transition-colors">
+                                            
+                                            <div>
+                                                <div class="flex items-center gap-2 mb-2">
+                                                    <span class="text-[10px] font-bold text-emerald-500 bg-emerald-100/50 px-2 py-1 rounded-md">
+                                                        {{ bill?.paymentStatus || '상태없음' }}
+                                                    </span>
+                                                    <span class="text-xs text-slate-400">{{ bill?.paymentMethod || '결제수단' }}</span>
+                                                </div>
+                                                <h5 class="font-bold text-slate-800">{{ bill?.paymentName || '예약금 결제' }}</h5>
+                                                <p class="text-xs text-slate-500 mt-1">{{ bill?.paymentDate ? String(bill.paymentDate).substring(0, 10) : '날짜없음' }}</p>
+                                            </div>
+                                            
+                                            <div class="text-right">
+                                                <div class="text-lg font-black text-slate-900">{{ bill?.amount ? Number(bill.amount).toLocaleString() : 0 }}원</div>
+                                                <button class="text-[10px] text-slate-400 underline hover:text-emerald-600 mt-1">영수증 보기</button>
+                                            </div>
+                                            
+                                        </div>
+                                    </div>
                                 </div>
+
                                 <div v-show="currentTab === 'results'">
                                     <h4 class="text-xl font-bold mb-6 flex items-center gap-2 text-amber-600">
                                         <i class="fa-solid fa-chart-line"></i> 검사 결과 보고서
                                     </h4>
-                                    <div v-if="resultsData.length === 0" class="text-slate-600 text-sm">최근 검사 결과가 없습니다.</div>
+                                    <div v-if="!resultsData || resultsData.length === 0" class="text-slate-600 text-sm">최근 검사 결과가 없습니다.</div>
                                 </div>
                             </div>
                         </div>

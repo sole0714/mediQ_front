@@ -170,6 +170,7 @@
 <script setup>
 import { onMounted, ref, defineExpose, defineEmits, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import api from '@/plugins/axiosinterceptor';
 
 
 // props로 mode 받기
@@ -424,7 +425,36 @@ const panToMyLocation = () => {
 
 const openKakaoWay = (h) => window.open(`https://map.kakao.com/link/to/${h.name},${h.lat},${h.lng}`);
 const callHospital = (phone) => window.location.href = `tel:${phone}`;
-const goToPrecheck = () => router.push('/precheck');
+const goToPrecheck = async () => {
+  if (!selectedCard.value) return;
+
+  try {
+    // 1. 백엔드에 카카오 병원 정보 전송 및 우리 DB에 동기화
+    const response = await api.post('/api/hospitals/check', {
+      kakaoPlaceId: selectedCard.value.id,
+      name: selectedCard.value.name,
+      address: selectedCard.value.address,
+      phone: selectedCard.value.phone
+    });
+
+    if (response.data.success) {
+      const myDbHospital = response.data.result;
+
+      // 2. 결제창에서 쓰기 위해 로컬 스토리지에 저장
+      localStorage.setItem('selectedHospital', JSON.stringify({
+        idx: myDbHospital.idx,
+        name: myDbHospital.name,
+        deposit: myDbHospital.deposit // 1원
+      }));
+
+      // 3. 문진표 작성 페이지로 이동
+      router.push('/precheck');
+    }
+  } catch (error) {
+    console.error("병원 연동 실패:", error);
+    alert("예약을 진행할 수 없습니다. 다시 시도해 주세요.");
+  }
+};
 
 const openCard = (place) => { selectedCard.value = place; if(map.value) map.value.panTo(new window.kakao.maps.LatLng(place.lat, place.lng)); displayMarkers([place]); emit('select-hospital', place); };
 const closeCard = () => { 
