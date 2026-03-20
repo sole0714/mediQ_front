@@ -20,4 +20,9 @@ const profile = async (req) => {
   return res
 }
 
-export default { login, signup, profile }
+const logout = async () => {
+  const res = await api.post('/user/logout')
+  return res
+}
+
+export default { login, signup, profile, logout }

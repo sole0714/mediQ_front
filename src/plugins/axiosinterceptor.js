@@ -1,29 +1,36 @@
 import axios from 'axios'
+import router from '@/router'
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'http://localhost:8080', 
   timeout: 5000,
-  withCredentials: true
+  withCredentials: true 
 })
 
 api.interceptors.request.use(
   (config) => {
-    console.log('요청 보내기 전에 실행')
     return config
   },
   (error) => {
-    console.log('요청 보낼 때 에러 발생')
     return Promise.reject(error)
   },
 )
 
 api.interceptors.response.use(
-  (config) => {
-    console.log('응답 받아서 화면에 띄우기 전에 실행')
-    return config
+  (response) => {
+    return response
   },
   (error) => {
-    console.log('응답 받을 때 에러 발생')
+    if (error.response && error.response.status === 401) {
+      // 로그인 확인용 API에서 난 401 에러는 무시합니다! (게스트 처리를 위해)
+      if (error.config.url.includes('/user/profile')) {
+        return Promise.reject(error);
+      }
+
+      // 그 외에 진짜 권한이 필요한 곳(예: 마이페이지 등)에서 401이 나면 튕겨냅니다.
+      alert('세션이 만료되었거나 로그인이 필요합니다.');
+      router.push('/login');
+    }
     return Promise.reject(error)
   },
 )
