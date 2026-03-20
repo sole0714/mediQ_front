@@ -5,7 +5,7 @@ import axios from 'axios'
 const userId = ref('')
 
 const props = defineProps(['initialData'])
-const wsUri = "wss://www.mediq.kro.kr/ws/chat";
+const wsUri = "http://localhost:8080/ws/chat";
 
 let websocket = null
 
@@ -193,7 +193,7 @@ const subscribePush = async () => {
     })
 
     console.log(JSON.stringify(subscription))
-    await axios.post('http://localhost:8080/push/sub/${currentNickname.value}', subscription)
+    await axios.post(`http://localhost:8080/push/sub/${currentNickname.value}`, subscription)
   }
 
 }
