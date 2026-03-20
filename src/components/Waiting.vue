@@ -103,19 +103,35 @@ function initFromProps() {
   }
 }
 
-function searchHospital() {
+async function searchHospital() {
   if (!searchKeyword.value) {
     alert('병원 이름을 입력해주세요')
-    return
+    return;
   }
-  isSearching.value = true
-  setTimeout(() => {
-    hospital.name = searchKeyword.value
-    isSearching.value = false
-  }, 500)
+
+  try {
+    isSearching.value = true;
+
+    const response = await axios.get(`http://localhost:8080/waiting/queue/list/${searchKeyword.value}`);    
+
+    hospital.name = searchKeyword.value;
+    hospital.queue = response.data;
+
+  } catch (error) {
+    console.error('데이터를 가져오는 중 오류 발생:', error);
+    alert('병원 정보를 불러오는데 실패했습니다');
+  } finally {
+    isSearching.value = false;
+  }
+  // isSearching.value = true
+  // setTimeout(() => {
+  //   hospital.name = searchKeyword.value
+  //   isSearching.value = false
+  // }, 500)
 }
 
-function checkInfo() {
+async function checkInfo() {
+  // 1. 유효성 검증
   if (!hospital.name || hospital.name === '병원을 검색해주세요') {
     alert('먼저 병원을 검색하여 선택해주세요.')
     return
@@ -124,6 +140,22 @@ function checkInfo() {
     alert('이름은 두 글자 이상 입력하세요')
     return
   }
+
+  const payload = {
+    userIdx : currentNickname.value,
+    hospitalIdx: searchKeyword.value
+  }
+
+  try {
+    await axios.post(`http://localhost:8080/waiting/register`, payload);
+    console.log("등록 성공 : ", response.data);
+    // 성공 시 화면 전환
+    // processStep.value = 'review'
+    return response.data;
+  } catch (error) {
+    console.error("등록 실패 : ", error);
+  }
+
   processStep.value = 'review'
 }
 
@@ -139,6 +171,12 @@ function joinQueue() {
     nickname: currentNickname.value
   }))
   
+
+  
+
+
+
+
   addToQueue(currentNickname.value)
   processStep.value = 'registered'
 }
