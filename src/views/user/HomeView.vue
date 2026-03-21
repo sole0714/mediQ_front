@@ -54,6 +54,8 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import api from '@/plugins/axiosinterceptor';
+import useAuthStore from '@/stores/useAuthStore';
 
 import LeftSideBar from '@/components/layout/LeftSideBar.vue';
 import Header from '@/components/layout/Header.vue';
@@ -68,17 +70,6 @@ const route = useRoute()
 const router = useRouter()
 const mode = ref('hospital')
 
-onMounted(() => {
-  // URL 쿼리로 모드 설정
-  if (route.query.mode) {
-    mode.value = route.query.mode;
-    router.replace({ path: '/' });
-  }
-
-  const saved = localStorage.getItem('myFavorites');
-  if (saved) favorites.value = JSON.parse(saved);
-});
-
 
 
 
@@ -88,6 +79,78 @@ const isListOpen = ref(true);
 const selectedPlace = ref(null);
 const favorites = ref([]);
 
+const authStore = useAuthStore();
+
+const fetchBookmarks = async () => {
+  if (!authStore.isLogin) {
+    favorites.value = [];
+    return;
+  }
+
+  try {
+    const res = await api.get('/bookmark/list');
+
+    favorites.value = res.data.map(bookmark => ({
+      idx: bookmark.idx,  // bookmark DB의 idx
+      id: bookmark.placeId, // 카카오맵 DB의 ID
+      name: bookmark.name,
+      address: bookmark.location,
+      lat: bookmark.latitude,
+      lng: bookmark.longitude
+    }));
+  } catch (error) {
+    console.error('북마크 목록 불러오기 실패:', error);
+  }
+};
+
+onMounted(() => {
+  if (route.query.mode) {
+    mode.value = route.query.mode;
+    router.replace({ path: '/' });
+  }
+  
+  authStore.checkLogin();
+  fetchBookmarks();
+});
+
+const handleToggleFavorite = async (item) => {
+
+  const existingIdx = favorites.value.findIndex(f => f.id === item.id);
+
+  if (existingIdx > -1) {
+    const targetIdx = favorites.value[existingIdx].idx;
+    try {
+      await api.delete(`/bookmark/delete/${targetIdx}`);
+      favorites.value.splice(existingIdx, 1); 
+    } catch (error) {
+      console.error('북마크 삭제 실패:', error);
+    }
+  } else {
+    const bookmarkData = {
+      placeId: item.id,
+      name: item.name,
+      location: item.address,
+      latitude: item.lat,
+      longitude: item.lng
+    };
+
+    try {
+      const res = await api.post('/bookmark/register', bookmarkData);
+      
+      favorites.value.push({
+        idx: res.data.idx,
+        id: item.id,
+        name: item.name,
+        address: item.address,
+        lat: item.lat,
+        lng: item.lng
+      });
+    } catch (error) {
+      console.error('북마크 등록 실패:', error);
+      alert('북마크 등록을 위해 로그인이 필요합니다.');
+    }
+  }
+};
 const handleSearch = (keyword) => {
   if (mapRef.value) mapRef.value.searchPlaces(keyword);
 };
@@ -97,6 +160,24 @@ const updateList = (data) => {
 };
 
 const focusPlace = (place) => {
+  // 불필요 시 더미 데이터 삭제
+  const enrichedPlace = {
+    ...place, 
+    status: place.status || '보통',
+    waitTime: place.waitTime || Math.floor(Math.random() * 30) + 5,
+    waitCount: place.waitCount || (Math.floor(Math.random() * 10) + 1) + "명",
+    dept: place.dept || '내과 전문',
+    phone: place.phone || '02-0000-0000',
+    parking: place.parking || (Math.random() > 0.5 ? "여유" : "만차"),
+    isOpen: place.isOpen !== undefined ? place.isOpen : true,
+    distance: place.distance || '저장된 장소',
+    subjects: place.subjects || ['일반진료'],
+    doctors: place.doctors || [{ name: '담당 원장', field: '전문의' }],
+    reviews: place.reviews || []
+  };
+  
+  // 여기까지
+
   if (mapRef.value) mapRef.value.openCard(place);
 };
 
@@ -108,13 +189,6 @@ const handleSelectPlace = (place) => {
 const clearSelection = () => {
   selectedPlace.value = null;
   if (mapRef.value) mapRef.value.closeCard();
-};
-
-const handleToggleFavorite = (item) => {
-  const idx = favorites.value.findIndex(f => f.id === item.id);
-  if (idx > -1) favorites.value.splice(idx, 1);
-  else favorites.value.push(item);
-  localStorage.setItem('myFavorites', JSON.stringify(favorites.value));
 };
 
 const changeMode = (newMode) => {
