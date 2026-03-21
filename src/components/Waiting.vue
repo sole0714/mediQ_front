@@ -1,18 +1,24 @@
 <script setup>
 import { reactive, ref, computed, onMounted, defineProps } from 'vue'
 import axios from 'axios'
+import useAuthStore from '@/stores/useAuthStore';
+
+const authStore = useAuthStore()
+
+const currentNickname = computed(() => {
+  return authStore.isLogin ? authStore.getUsername() : '사용자'
+})
 
 const props = defineProps(['initialData'])
 const wsUri = "http://localhost:8080/ws/chat";
 
 let websocket = null
-
 const connected = ref(false)
 const processStep = ref('review') 
-const currentNickname = ref('')   // 백엔드 findRes.userName이 담길 변수
 const searchKeyword = ref('')
 const isSearching = ref(false)
 const myWaitingDetail = ref(null); 
+const isNotificationEnabled = ref(false); // 알림 설정 상태 표시용
 
 const hospital = reactive({
   id: 'hospital1',
@@ -30,20 +36,12 @@ function connectWebSocket() {
     try {
       const payload = JSON.parse(e.data)
       const data = payload.payload ? JSON.parse(payload.payload) : payload
-      handleQueueUpdate(data)
+      if (data.action === 'sync' && data.queue) {
+        hospital.queue = Array.isArray(data.queue) ? data.queue : [];
+        hospital.queue.forEach((q, i) => (q.position = i + 1));
+      }
     } catch (err) { console.error("메시지 파싱 에러:", err) }
   }
-}
-
-function handleQueueUpdate({ action, queue }) {
-  if (action === 'sync' && queue) {
-    hospital.queue = Array.isArray(queue) ? queue : [];
-    updatePositions()
-  }
-}
-
-function updatePositions() {
-  hospital.queue.forEach((q, i) => (q.position = i + 1))
 }
 
 const myQueue = computed(() => {
@@ -56,7 +54,43 @@ const estimatedWaitTime = computed(() => {
   return count * AVG_MIN_PER_PERSON
 })
 
-// --- 주요 기능 ---
+
+const subscribePush = async () => {
+  try {
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') {
+      alert("알림 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.");
+      return
+    }
+
+    await navigator.serviceWorker.register('/service-worker.js')
+    const VAPID_PUBLIC_KEY = 'BEyaCMDqIkd76kJ-WmsXJd2eI2JQEt-Ilx3kzRF-4Sgzu0_2zZkVY3Iesc3DoL5FDZ2MkEGsMhYAA85Q92HvOcw'
+
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription()
+
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: VAPID_PUBLIC_KEY
+      })
+
+      console.log("새 구독 생성:", JSON.stringify(subscription))
+      
+      await axios.post(`http://localhost:8080/push/sub`, subscription, { withCredentials: true })
+      
+      isNotificationEnabled.value = true;
+      alert("진료 순서 알림 등록이 완료되었습니다.");
+    } else {
+      isNotificationEnabled.value = true;
+      alert("이미 알림이 등록되어 있습니다.");
+    }
+  } catch (error) {
+    console.error("푸시 구독 에러:", error);
+    alert("알림 등록 중 오류가 발생했습니다.");
+  }
+}
+
 async function searchHospital() {
   if (!searchKeyword.value) {
     alert("병원 이름을 입력해주세요");
@@ -64,74 +98,64 @@ async function searchHospital() {
   }
   try {
     isSearching.value = true;
-    const listResponse = await axios.get(`http://localhost:8080/waiting/queue/list/${searchKeyword.value}`, { withCredentials: true });
-    const checkResponse = await axios.get(`http://localhost:8080/waiting/queue/${searchKeyword.value}`, { withCredentials: true });
+    const listRes = await axios.get(`http://localhost:8080/waiting/queue/list/${searchKeyword.value}`, { withCredentials: true });
+    const checkRes = await axios.get(`http://localhost:8080/waiting/queue/${searchKeyword.value}`, { withCredentials: true });
 
     hospital.name = searchKeyword.value;
-    const listData = listResponse.data.result || listResponse.data;
-    hospital.queue = Array.isArray(listData) ? listData : [];
+    hospital.queue = Array.isArray(listRes.data.result) ? listRes.data.result : [];
 
-    // ✅ 백엔드에서 넘겨준 FindRes (waitingNumber, idx, userName 포함) 데이터 추출
-    const myStatus = checkResponse.data.result || checkResponse.data;
+    const myStatus = checkRes.data.result || checkRes.data;
     
     if (myStatus && myStatus.idx !== -1) {
       myWaitingDetail.value = myStatus; 
-      // ✅ 서버에서 받아온 userName을 로컬 변수에 할당
-      currentNickname.value = myStatus.userName || '사용자';
       processStep.value = 'registered'; 
     } else {
       myWaitingDetail.value = null;
-      // ✅ 대기 내역이 없더라도, 로그인 정보를 위해 이름을 세팅 (필요시 별도 API 호출 가능)
-      currentNickname.value = myStatus.userName || currentNickname.value;
       processStep.value = 'review'; 
     }
   } catch (error) {
-    console.error('데이터 로드 실패:', error);
+    console.error('검색 실패:', error);
   } finally { isSearching.value = false; }
 }
 
 async function confirmRegistration() {
-  if (!hospital.name || hospital.name === '병원을 검색해주세요') {
-    alert('먼저 병원을 검색해주세요.'); return
-  }
-  
-  const payload = { hospitalIdx: searchKeyword.value }
+  if (!hospital.name || hospital.name === '병원을 검색해주세요') return;
   try {
-    const response = await axios.post('http://localhost:8080/waiting/register', payload, { withCredentials: true });
+    const response = await axios.post('http://localhost:8080/waiting/register', 
+      { hospitalIdx: searchKeyword.value }, 
+      { withCredentials: true }
+    );
     const result = response.data.result || response.data;
-    
     if (result && result.idx !== -1) {
-      alert("접수가 완료되었습니다.");
+      alert("대기 접수가 완료되었습니다.");
       myWaitingDetail.value = result; 
-      // ✅ 등록 성공 시 응답받은 userName 할당
-      currentNickname.value = result.userName || currentNickname.value;
       processStep.value = 'registered';
-      
-      if (websocket && websocket.readyState === WebSocket.OPEN) {
+      if (websocket?.readyState === WebSocket.OPEN) {
         websocket.send(JSON.stringify({ action: 'join', hospital: hospital.id, nickname: currentNickname.value }))
       }
     }
-  } catch (error) { 
-    alert('등록 중 오류가 발생했습니다.'); 
-  }
+    window.location.reload();
+  } catch (error) { alert('접수 중 오류가 발생했습니다.'); }
 }
 
 async function cancelQueue() {
-  if (!confirm('대기를 취소하시겠습니까?')) return
+  if (!confirm('대기를 취소하시겠습니까?')) return;
   try {
     await axios.delete(`http://localhost:8080/waiting/register`, { 
-      data: { userIdx : currentNickname.value, hospitalIdx: searchKeyword.value },
+      data: { hospitalIdx: searchKeyword.value },
       withCredentials: true 
     });
-    if (websocket && websocket.readyState === WebSocket.OPEN) {
+    if (websocket?.readyState === WebSocket.OPEN) {
       websocket.send(JSON.stringify({ action: 'cancel', hospital: hospital.id, nickname: currentNickname.value }))
     }
     processStep.value = 'review';
     myWaitingDetail.value = null;
-  } catch (error) { alert("대기 취소 중 오류 발생"); }
+    isNotificationEnabled.value = false;
+  } catch (error) { alert("취소 중 오류 발생"); }
 }
 
 onMounted(() => { 
+  authStore.checkLogin(); 
   connectWebSocket();
 })
 </script>
@@ -140,7 +164,8 @@ onMounted(() => {
   <main class="main-layout flex flex-col md:flex-row min-h-screen bg-slate-50">
     <section class="flex-1 p-6 md:p-12 border-r border-slate-200">
       <div class="max-w-md mx-auto">
-        <div class="hospital-card bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+        
+        <div class="hospital-card bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8">
           <div class="hospital-search-box mb-6">
             <label class="block text-sm font-bold text-slate-700 mb-2">방문할 병원</label>
             <div class="relative flex items-center">
@@ -148,7 +173,7 @@ onMounted(() => {
                 v-model="searchKeyword" 
                 @keyup.enter="searchHospital"
                 class="w-full pl-4 pr-12 py-3 bg-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                placeholder="병원 이름 검색..." 
+                placeholder="병원을 검색하세요" 
                 :disabled="processStep === 'registered'"
               />
               <button @click="searchHospital" class="absolute right-2 p-2 text-slate-500 hover:text-blue-600">
@@ -163,24 +188,13 @@ onMounted(() => {
               <i class="fa-solid fa-hospital"></i>
             </div>
             <div>
-              <span class="text-xs font-bold text-blue-600 uppercase tracking-wider" v-if="hospital.name !== '병원을 검색해주세요'">진료중</span>
+              <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Hospital Info</span>
               <h2 class="text-xl font-black text-slate-800">{{ hospital.name }}</h2>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4 mt-6">
-            <div class="bg-slate-50 p-4 rounded-2xl text-center">
-              <span class="block text-xs text-slate-500 mb-1">현재 총 대기</span>
-              <span class="text-lg font-bold text-slate-800">{{ hospital.queue.length }}명</span>
-            </div>
-            <div class="bg-slate-50 p-4 rounded-2xl text-center">
-              <span class="block text-xs text-slate-500 mb-1">예상 시간</span>
-              <span class="text-lg font-bold text-slate-800">{{ hospital.queue.length * AVG_MIN_PER_PERSON }}분</span>
             </div>
           </div>
         </div>
 
-        <div class="user-action-area mt-8">
+        <div class="user-action-area">
           <div v-if="processStep === 'review'" class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 animate-slide-up">
             <h3 class="text-lg font-bold text-slate-800 mb-6">접수 정보 확인</h3>
             <div class="space-y-4 mb-8">
@@ -188,22 +202,35 @@ onMounted(() => {
                 <span class="text-slate-500 text-sm">환자 성함</span>
                 <span class="font-bold text-slate-900 text-lg">{{ currentNickname }}님</span>
               </div>
+              
+              <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <span class="text-slate-500 text-sm">진료 순서 알림</span>
+                <button @click="subscribePush" 
+                  :class="[
+                    'px-4 py-1.5 rounded-full text-xs font-bold transition-all',
+                    isNotificationEnabled ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'
+                  ]">
+                  <i :class="isNotificationEnabled ? 'fa-solid fa-bell' : 'fa-solid fa-bell-slash'" class="mr-1"></i>
+                  {{ isNotificationEnabled ? '등록됨' : '알림 등록' }}
+                </button>
+              </div>
+
               <div class="flex justify-between items-center p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
                 <span class="text-blue-600 text-sm font-semibold">예상 대기</span>
                 <span class="font-bold text-blue-700">약 {{ estimatedWaitTime }}분</span>
               </div>
             </div>
-            <button @click="confirmRegistration" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
+            <button @click="confirmRegistration" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition-all active:scale-95">
               지금 바로 대기 접수
             </button>
           </div>
           
           <div v-else-if="processStep === 'registered'" class="text-center p-8 bg-green-50 rounded-3xl border border-green-100">
-            <div class="w-16 h-16 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-lg shadow-green-100">
+            <div class="w-16 h-16 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-lg">
               <i class="fa-solid fa-check"></i>
             </div>
             <h3 class="font-bold text-green-800 text-lg">접수가 완료되었습니다!</h3>
-            <p class="text-sm text-green-600 mt-2">{{ currentNickname }}님, 우측 티켓 번호를 확인해 주세요.</p>
+            <p class="text-sm text-green-600 mt-2">{{ currentNickname }}님, 우측 티켓을 확인해 주세요.</p>
           </div>
         </div>
       </div>
@@ -211,66 +238,42 @@ onMounted(() => {
 
     <section class="flex-1 p-6 md:p-12 bg-slate-50 flex flex-col items-center justify-center">
       <div v-if="processStep === 'registered'" class="w-full max-w-sm animate-slide-up">
-        <div class="relative bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+        <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
           <div class="bg-blue-600 p-6 text-white text-center">
-            <p class="text-xs font-bold opacity-80 uppercase tracking-widest mb-1">Waiting Ticket</p>
             <h4 class="text-lg font-black">{{ hospital.name }}</h4>
           </div>
-          
-          <div class="p-10 text-center border-b-2 border-dashed border-slate-200 relative">
-            <div class="absolute -left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-slate-50 rounded-full shadow-inner border-r border-slate-200"></div>
-            <div class="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-slate-50 rounded-full shadow-inner border-l border-slate-200"></div>
-            
-            <div class="mb-6">
-              <span class="text-sm text-slate-400 font-bold uppercase tracking-wider">접수 번호 (ID)</span>
-              <div class="text-8xl font-black text-slate-900 mt-2 tracking-tighter">
-                {{ myWaitingDetail?.idx || '-' }}
-              </div>
-            </div>
-
-            <div class="flex items-center justify-center gap-2 mb-6">
-              <div class="h-[1px] w-8 bg-slate-100"></div>
-              <div class="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
-              <div class="h-[1px] w-8 bg-slate-100"></div>
-            </div>
-
-            <div class="pb-2">
-              <span class="text-xs text-slate-400 font-bold uppercase block mb-1">현재 대기 순서</span>
-              <div class="text-5xl font-extrabold text-blue-600">
-                {{ myWaitingDetail?.waitingNumber || '조회중' }}<span class="text-xl ml-1">번째</span>
-              </div>
+          <div class="p-10 text-center border-b-2 border-dashed border-slate-200">
+            <span class="text-sm text-slate-400 font-bold uppercase">내 접수 번호</span>
+            <div class="text-8xl font-black text-slate-900 mt-2 tracking-tighter">{{ myWaitingDetail?.idx || '-' }}</div>
+            <div class="mt-6 text-5xl font-extrabold text-blue-600">
+              {{ myWaitingDetail?.waitingNumber }}<span class="text-xl ml-1">번째</span>
             </div>
           </div>
-
-          <div class="p-6 bg-slate-50 flex justify-between items-center border-t border-slate-100">
+          <div class="p-6 bg-slate-50 flex justify-between items-center">
             <div>
               <p class="text-xs text-slate-400">성함</p>
               <p class="font-bold text-slate-800">{{ currentNickname }}님</p>
             </div>
-            <div class="text-right">
-              <p class="text-xs text-slate-400">상태</p>
-              <span class="px-3 py-1 bg-green-100 text-green-600 rounded-lg text-xs font-bold">정상접수</span>
+            <div class="text-right flex flex-col items-end gap-1">
+              <span class="px-3 py-1 bg-green-100 text-green-600 rounded-lg text-[10px] font-bold">정상접수</span>
+              <span v-if="isNotificationEnabled" class="text-[10px] text-blue-500 font-bold animate-pulse">
+                <i class="fa-solid fa-bell mr-0.5"></i>알림 활성화
+              </span>
             </div>
           </div>
         </div>
-        
         <button @click="cancelQueue" class="w-full mt-8 py-4 text-slate-400 font-bold hover:text-red-500 transition-colors">
-          <i class="fa-solid fa-xmark mr-2"></i> 대기 취소하기
+          <i class="fa-solid fa-xmark mr-1"></i> 대기 취소하기
         </button>
       </div>
-
       <div v-else class="text-center opacity-20">
         <i class="fa-solid fa-ticket text-9xl text-slate-300 mb-6"></i>
-        <p class="text-xl font-bold text-slate-400">병원을 검색하시면<br>접수 확인 창이 나타납니다.</p>
+        <p class="text-xl font-bold text-slate-400">병원을 검색해 주세요.</p>
       </div>
     </section>
   </main>
 </template>
 
-<style scoped>
-.animate-slide-up { animation: slideUp 0.5s ease-out; }
-@keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-</style>
 
 <style scoped>
 .animate-slide-up { animation: slideUp 0.5s ease-out; }
