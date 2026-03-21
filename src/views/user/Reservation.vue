@@ -23,6 +23,22 @@
 
       <div class="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm mb-8">
         <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <i class="fa-regular fa-calendar-check text-indigo-500"></i> 방문 일정 선택
+        </h3>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-2">날짜</label>
+                <input type="date" v-model="selectedDate" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-slate-700" />
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-2">시간</label>
+                <input type="time" v-model="selectedTime" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-slate-700" />
+            </div>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm mb-8">
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
           <i class="fa-solid fa-credit-card text-indigo-500"></i> 결제 정보
         </h3>
         <div class="flex justify-between items-center py-3 border-b border-slate-50">
@@ -57,22 +73,34 @@ import api from '@/plugins/axiosinterceptor'
 
 const router = useRouter()
 
-// 💡 1. MainMap에서 저장했던 실제 병원 정보 불러오기
+// 1. MainMap에서 저장했던 실제 병원 정보 불러오기
 const savedInfo = JSON.parse(localStorage.getItem('selectedHospital')) || { 
   idx: 1, name: "알 수 없는 병원", deposit: 1 
 };
 const hospitalInfo = ref(savedInfo);
 
+// 💡 날짜와 시간을 저장할 변수
+const selectedDate = ref('');
+const selectedTime = ref('');
+
 function goBack() {
   history.back()
 }
 
-// 💡 2. 포트원 결제 흐름 (주문서 생성 -> 결제 -> 검증)
+// 2. 포트원 결제 흐름 (주문서 생성 -> 결제 -> 검증)
 const handlePayment = async () => {
+  // 💡 날짜와 시간을 선택하지 않으면 결제를 막음
+  if (!selectedDate.value || !selectedTime.value) {
+      alert("방문하실 날짜와 시간을 먼저 선택해주세요!");
+      return;
+  }
+
   try {
-    // 1단계: 백엔드에 주문서(1원짜리) 생성 요청
+    // 1단계: 백엔드에 주문서(1원짜리) 생성 요청 (+ 날짜, 시간 데이터도 함께 전송)
     const createRes = await api.post("/orders/create", {
-      hospitalIdx: hospitalInfo.value.idx
+      hospitalIdx: hospitalInfo.value.idx,
+      reservationDate: selectedDate.value,
+      reservationTime: selectedTime.value
     });
     
     const ordersIdx = createRes.data.result.ordersIdx;
@@ -105,7 +133,7 @@ const handlePayment = async () => {
 
     alert("예약금 결제가 완료되어 예약이 확정되었습니다!");
     
-    // 결제 완료 후 마이페이지로 이동!
+    // 결제 완료 후 마이페이지의 결제 내역 탭으로 이동!
     router.push('/mypage');
 
   } catch (error) {

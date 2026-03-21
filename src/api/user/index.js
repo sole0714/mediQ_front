@@ -6,9 +6,19 @@ const login = async (req) => {
   return res
 }
 
+const hospitalLogin = async (req) => {
+  const res = await api.post('/hospitaluser/login', req)
+  return res
+}
+
 const signup = async (req) => {
   const res = await api.post('/user/signup', req)
 
+  return res
+}
+
+const hospitalSignup = async (req) => {
+  const res = await api.post('/hospitaluser/signup', req)
   return res
 }
 
@@ -25,4 +35,4 @@ const logout = async () => {
   return res
 }
 
-export default { login, signup, profile, logout }
+export default { login, hospitalLogin, hospitalSignup, signup, profile, logout }

@@ -14,8 +14,8 @@ const goToMain = () => {
 };
 
 const logout = async () => {
-    alert("로그아웃 되었습니다."); // 알림을 먼저 띄우고
-    await authStore.logout(); // 스토어의 로그아웃 실행
+    alert("로그아웃 되었습니다.");
+    await authStore.logout();
 };
 
 const currentTab = ref('medical-history');
@@ -27,21 +27,18 @@ const tabs = [
     { id: 'results', label: '검사 결과', icon: 'fa-square-poll-vertical', color: 'amber' }
 ];
 
-//각 탭의 데이터를 담을 변수들
 const medicalHistoryData = ref([]);
 const prescriptionsData = ref([]);
 const billingData = ref([]);
 const resultsData = ref([]);
 
-//탭을 누를 때마다 실행되는 함수 (Lazy Loading 적용)
 const selectTab = async (tabId) => {
     currentTab.value = tabId;
     updateArrowPosition();
 
-    if (!authStore.isLogin) return; // 로그인 안 되어있으면 요청 안 함
+    if (!authStore.isLogin) return;
 
     try {
-        // 해당 탭의 데이터가 비어있을 때만 API 호출! (이미 가져왔으면 다시 안 부름)
         if (tabId === 'medical-history' && medicalHistoryData.value.length === 0) {
             const res = await api.get('/mypage/medical');
             if (res.data.success) medicalHistoryData.value = res.data.result;
@@ -63,22 +60,20 @@ const selectTab = async (tabId) => {
     }
 };
 
-const hospitalSchedule = ref([
-    {
-        month: '11월',
-        day: '15',
-        hospital: '연세세브란스 (피부과)',
-        description: '정기 레이저 치료 · 오후 04:00',
-        bgClass: 'bg-indigo-50 text-indigo-600',
-    },
-    {
-        month: '12월',
-        day: '20',
-        hospital: '아이사랑 치과',
-        description: '스케일링 예약 · 오전 10:30',
-        bgClass: 'bg-slate-50 text-slate-500',
+// 💡 백엔드에서 받아올 진짜 일정 데이터 배열 (빈 배열로 초기화)
+const hospitalSchedule = ref([]);
+
+// 💡 백엔드(/orders/schedule)에서 결제 완료된 내 일정을 가져오는 함수
+const fetchSchedule = async () => {
+    try {
+        const res = await api.get('/orders/schedule');
+        if (res.data.success) {
+            hospitalSchedule.value = res.data.result;
+        }
+    } catch (error) {
+        console.error('일정 불러오기 실패:', error);
     }
-]);
+};
 
 const familyMembers = ref([
     {
@@ -158,9 +153,10 @@ onMounted(() => {
     
     authStore.checkLogin(); 
 
-    //첫 화면 진입 시, 첫 번째 탭(진료 기록) 데이터만 가져오도록 함수 실행
     if (authStore.isLogin) {
         selectTab('medical-history');
+        // 💡 로그인 되어있으면 일정 불러오기 함수 즉시 실행!
+        fetchSchedule(); 
     }
 });
 
@@ -333,7 +329,6 @@ onUnmounted(() => {
                                         </div>
                                     </div>
                                 </div>
-
                                 <div v-show="currentTab === 'results'">
                                     <h4 class="text-xl font-bold mb-6 flex items-center gap-2 text-amber-600">
                                         <i class="fa-solid fa-chart-line"></i> 검사 결과 보고서
@@ -364,7 +359,11 @@ onUnmounted(() => {
                         </h3>
                         
                         <div v-if="userInfo" class="bg-white border border-slate-100 rounded-[32px] p-6 shadow-sm space-y-4">
-                            <div v-for="(schedule, index) in hospitalSchedule" :key="index" 
+                            <div v-if="hospitalSchedule.length === 0" class="text-center py-6 text-slate-400 text-sm">
+                                확정된 예약 일정이 없습니다.
+                            </div>
+
+                            <div v-else v-for="(schedule, index) in hospitalSchedule" :key="index" 
                                  class="flex items-center gap-4 pb-4 border-b border-slate-50 last:border-0 last:pb-0">
                                 <div :class="['flex flex-col items-center justify-center w-14 h-14 rounded-2xl shrink-0', schedule.bgClass]">
                                     <span class="text-[10px] font-bold uppercase">{{ schedule.month }}</span>
