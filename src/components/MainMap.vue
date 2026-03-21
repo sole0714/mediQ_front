@@ -27,6 +27,11 @@
             <input type="checkbox" v-model="filterOpenOnly" @change="applyFilters" class="accent-indigo-600 scale-90">
             영업 중
           </label>
+
+          <label v-if="mode === 'hospital'" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-sm text-xs font-black text-slate-700 cursor-pointer whitespace-nowrap hover:bg-slate-50 hover:border-slate-300 transition select-none">
+            <input type="checkbox" v-model="filterReservableOnly" @change="applyFilters" class="accent-indigo-600 scale-90">
+            <i class="fa-solid fa-bolt text-amber-500"></i> 접수 가능
+          </label>
         </div>
         
         <template v-if="mode === 'hospital'">
@@ -171,6 +176,8 @@
 import { onMounted, ref, defineExpose, defineEmits, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
+import api from '@/plugins/axiosinterceptor';
+
 
 // props로 mode 받기
 const props = defineProps(['favorites', 'mode']);
@@ -192,6 +199,10 @@ const isDeptMenuOpen = ref(false);
 const filterOpenOnly = ref(false);
 const sortMode = ref('distance');
 const currentDept = ref('all');
+
+// <접수 가능> 기능 관련 변수 
+const filterReservableOnly = ref(false); // 앱 접수 필터 상태
+const registeredHospitals = ref([]);     // 백엔드에서 받아온 제휴 병원 목록
 
 
 
@@ -224,7 +235,16 @@ const getDepartmentBySymptom = (inputText) => {
   return inputText;
 };
 
-onMounted(() => {
+onMounted(async() => {
+  // 백엔드에서 제휴 병원 목록(placeId, idx) 가져오기
+  try {
+    const res = await api.get('/hospital/list');
+    registeredHospitals.value = res.data; 
+  } catch (error) {
+    console.error('제휴 병원 목록 로딩 실패:', error);
+  }
+
+
   if (!window.kakao || !window.kakao.maps) return;
   window.kakao.maps.load(() => {
     const options = { center: new window.kakao.maps.LatLng(37.5598, 126.9425), level: 4 };
@@ -255,6 +275,7 @@ watch(() => props.mode, (newMode) => {
     currentDept.value = 'all';
     sortMode.value = 'distance';
     filterOpenOnly.value = false;
+    filterReservableOnly.value = false; // 탭 변경 시 접수 필터 초기화
     
     if (newMode === 'pharmacy' && previousHospital.value) {
       performSearchAroundHospital(previousHospital.value);
@@ -323,6 +344,11 @@ const applyFilters = () => {
   }
   if (filterOpenOnly.value) result = result.filter(h => h.isOpen);
   
+  // 접수 체크 시 isReservable인 병원만 남기기
+  if (filterReservableOnly.value) {
+    result = result.filter(h => h.isReservable);
+  }
+
   if (sortMode.value === 'distance') result.sort((a,b) => a.distanceValue - b.distanceValue);
   else if (sortMode.value === 'wait') result.sort((a,b) => a.waitTime - b.waitTime);
   else if (sortMode.value === 'status') { const rank = { "원활": 0, "보통": 1, "혼잡": 2 }; result.sort((a,b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9)); }
@@ -368,6 +394,9 @@ const displayMarkers = (places) => {
 };
 
 const generateRandomData = (place) => {
+  // placeId 찾기 위한 임시 코드
+  console.log("🏥 병원 이름:", place.place_name, " / 🔑 카카오맵 ID:", place.id);
+  
   const isPharmacy = props.mode === 'pharmacy';
   const isOpen = Math.random() > 0.3;
   let statusText = !isOpen ? "영업 종료" : (isPharmacy ? "영업 중" : ["원활", "보통", "혼잡"][Math.floor(Math.random() * 3)]);
@@ -396,12 +425,20 @@ const generateRandomData = (place) => {
     reviews.push({ user: "방문자" + (i+1), text: reviewTexts[Math.floor(Math.random() * reviewTexts.length)], date: "2024.01." + (10 + i), rate: (Math.random() * 2 + 3).toFixed(1) });
   }
 
+  // <접수 가능> 관련 코드
+  const matchedDbHospital = registeredHospitals.value.find(
+    (dbHospital) => dbHospital.placeId === place.id
+  );
+
   return {
     id: place.id, name: place.place_name, lat: place.y, lng: place.x, address: place.road_address_name || place.address_name, phone: place.phone || "02-0000-0000",
     distance: place.distance ? place.distance + "m" : "-", distanceValue: Number(place.distance || 999999), place_url: place.place_url,
     isOpen: isOpen, status: statusText, waitTime: (!isOpen || isPharmacy) ? 0 : Math.floor(Math.random() * 30) + 5,
     waitCount: (!isOpen || isPharmacy) ? 0 : (Math.floor(Math.random() * 10) + 1) + "명", parking: Math.random() > 0.5 ? "여유" : "만차",
-    dept: detailDept, subjects: subjects, doctors: doctors, reviews: reviews, closingSoon: isOpen && Math.random() > 0.8
+    dept: detailDept, subjects: subjects, doctors: doctors, reviews: reviews, closingSoon: isOpen && Math.random() > 0.8,
+
+    isReservable: matchedDbHospital !== undefined, // 명단에 있으면 true(접수 가능)
+    hospitalIdx: matchedDbHospital ? matchedDbHospital.idx : null // 백엔드의 진짜 병원 고유번호
   };
 };
 
@@ -424,7 +461,14 @@ const panToMyLocation = () => {
 
 const openKakaoWay = (h) => window.open(`https://map.kakao.com/link/to/${h.name},${h.lat},${h.lng}`);
 const callHospital = (phone) => window.location.href = `tel:${phone}`;
-const goToPrecheck = () => router.push('/precheck');
+const goToPrecheck = () => {
+  if (selectedCard.value && selectedCard.value.isReservable) {
+    router.push({
+      path: '/precheck', query: {hospitalIdx: selectedCard.value.hospitalIdx}
+  });
+  }
+
+}
 
 const openCard = (place) => { selectedCard.value = place; if(map.value) map.value.panTo(new window.kakao.maps.LatLng(place.lat, place.lng)); displayMarkers([place]); emit('select-hospital', place); };
 const closeCard = () => { 
