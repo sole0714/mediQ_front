@@ -91,10 +91,10 @@ const fetchBookmarks = async () => {
     const res = await api.get('/bookmark/list');
 
     favorites.value = res.data.map(bookmark => ({
-      idx: bookmark.idx,  // bookmark DB의 idx
-      id: bookmark.placeId, // 카카오맵 DB의 ID
+      idx: bookmark.idx,          // bookmark DB의 idx
+      id: bookmark.kakaoPlaceId,  // 카카오맵 DB의 ID
       name: bookmark.name,
-      address: bookmark.location,
+      address: bookmark.address,
       lat: bookmark.latitude,
       lng: bookmark.longitude
     }));
@@ -127,9 +127,9 @@ const handleToggleFavorite = async (item) => {
     }
   } else {
     const bookmarkData = {
-      placeId: item.id,
+      kakaoPlaceId: item.id,
       name: item.name,
-      location: item.address,
+      address: item.address,
       latitude: item.lat,
       longitude: item.lng
     };
