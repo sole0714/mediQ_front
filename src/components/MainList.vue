@@ -184,6 +184,10 @@
               <p class="text-[11px] text-slate-400 mt-1 truncate">{{ h.distance }} · {{ h.address }}</p>
             </div>
             <div class="flex flex-col items-end gap-1 shrink-0">
+              <span v-if="h.isReservable" class="badge bg-indigo-50 text-indigo-600 border-indigo-100 flex items-center gap-1">
+                <i class="fa-solid fa-bolt text-amber-500"></i> 접수 가능
+              </span>
+
               <span v-if="h.isOpen" class="badge bg-emerald-50 text-emerald-700 border-emerald-100">{{ h.closingSoon ? '곧 마감' : '영업 중' }}</span>
               <span v-else class="badge bg-slate-100 text-slate-500">영업 종료</span>
               <button @click.stop="$emit('toggle-favorite', h)" class="mt-1">

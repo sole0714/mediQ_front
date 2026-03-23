@@ -15,7 +15,8 @@ const goToMain = () => {
 
 const logout = async () => {
     alert("로그아웃 되었습니다.");
-    await authStore.logout();
+    await authStore.logout();    
+    window.location.href = '/';
 };
 
 const currentTab = ref('medical-history');

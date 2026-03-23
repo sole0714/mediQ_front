@@ -15,8 +15,11 @@ const changeTab = (tabName) => {
   emit('change-tab', tabName); 
 };
 
-const handleLogout = () => {
-  authStore.logout();
+
+
+const handleLogout = async () => {
+  await authStore.logout();  // 서버 로그아웃 처리 및 스토어 비우기가 완전히 끝날 때까지 기다림
+  window.location.reload();  // 화면 새로고침
 };
 
 onMounted(() => {

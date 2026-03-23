@@ -27,6 +27,11 @@
             <input type="checkbox" v-model="filterOpenOnly" @change="applyFilters" class="accent-indigo-600 scale-90">
             영업 중
           </label>
+
+          <label v-if="mode === 'hospital'" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-sm text-xs font-black text-slate-700 cursor-pointer whitespace-nowrap hover:bg-slate-50 hover:border-slate-300 transition select-none">
+            <input type="checkbox" v-model="filterReservableOnly" @change="applyFilters" class="accent-indigo-600 scale-90">
+            <i class="fa-solid fa-bolt text-amber-500"></i> 접수 가능
+          </label>
         </div>
         
         <template v-if="mode === 'hospital'">
@@ -96,37 +101,46 @@
         </button>
 
         <div v-if="selectedCard" class="fade-in">
-          <div class="flex justify-between items-start mb-4 pr-8">
-            <div class="min-w-0 flex-1">
-              <p class="text-[10px] font-black uppercase tracking-wider mb-1" 
-                 :style="{ color: getColorByStatus(selectedCard.status) }">
-                {{ selectedCard.status }}
-              </p>
+          
+          <div class="flex justify-between items-start mb-5">
+            
+            <div class="min-w-0 flex-1 pr-4">
               
-              <div class="flex items-center gap-2 mt-1 mb-1">
-                <h4 class="text-xl font-black text-slate-900 leading-tight truncate">
-                  {{ selectedCard.name }}
-                </h4>
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <p class="text-[11px] font-black uppercase tracking-wider" 
+                     :style="{ color: getColorByStatus(selectedCard.status) }">
+                    {{ selectedCard.status }}
+                  </p>
+                  <span v-if="selectedCard.isReservable" class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md font-black border border-indigo-100 flex items-center gap-1">
+                    <i class="fa-solid fa-bolt text-amber-500"></i> 접수 가능
+                  </span>
+                </div>
                 
                 <button @click.stop="toggleFavorite(selectedCard)" 
-                        class="shrink-0 px-3 py-1.5 rounded-full border transition flex items-center gap-1.5"
-                        :class="isFavorite(selectedCard) 
-                          ? 'bg-rose-50 border-rose-200 text-rose-500' 
-                          : 'bg-white border-slate-200 text-slate-400 hover:border-rose-200 hover:text-rose-400'">
-                  <i class="text-sm" :class="isFavorite(selectedCard) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
-                  <span class="text-xs font-bold">찜</span>
+                        class="shrink-0 px-2.5 py-1.5 rounded-full border transition flex items-center gap-1 shadow-sm"
+                        :class="isFavorite(selectedCard) ? 'bg-rose-50 border-rose-200 text-rose-500' : 'bg-white border-slate-200 text-slate-400 hover:border-rose-200 hover:text-rose-400'">
+                  <i class="text-xs" :class="isFavorite(selectedCard) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
+                  <span class="text-[10px] font-bold">찜</span>
                 </button>
               </div>
+              
+              <h4 class="text-[22px] font-black text-slate-900 leading-snug break-keep mb-1.5">
+                {{ selectedCard.name }}
+              </h4>
 
-              <p class="text-xs text-slate-500 mt-1">
-                <span class="text-indigo-600 font-bold">{{ selectedCard.dept.split(',')[0] }}</span> | {{ selectedCard.distance }}
+              <p class="text-xs text-slate-500 font-medium">
+                <span class="text-indigo-600 font-bold">{{ selectedCard.dept.split(',')[0] }}</span>
+                <span class="mx-1.5 text-slate-300">|</span> 
+                {{ selectedCard.distance }}
               </p>
             </div>
             
-            <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-center min-w-[80px]">
-              <p class="text-[10px] text-slate-500 font-black">대기</p>
-              <p class="text-xl font-black text-slate-900">{{ selectedCard.waitTime }}<span class="text-xs">분</span></p>
+            <div class="shrink-0 bg-slate-50 border border-slate-200 p-3 rounded-2xl text-center min-w-[76px] shadow-sm mt-1">
+              <p class="text-[10px] text-slate-500 font-black mb-0.5">대기</p>
+              <p class="text-2xl font-black text-slate-900 leading-none">{{ selectedCard.waitTime }}<span class="text-xs ml-0.5 font-bold">분</span></p>
             </div>
+
           </div>
 
           <div class="grid grid-cols-3 gap-2 mb-4">
@@ -143,8 +157,7 @@
             </button>
           </div>
 
-<div class="space-y-2">
-            
+          <div class="space-y-2">
             <button v-if="mode === 'hospital'" 
                     @click="searchNearbyPharmacies(selectedCard)" 
                     class="w-full bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-black hover:bg-emerald-200 flex items-center justify-center gap-2 text-sm transition">
@@ -157,19 +170,25 @@
             
             <button v-if="mode === 'hospital'" 
                     @click="goToPrecheck" 
-                    class="w-full bg-slate-900 text-white py-3 rounded-2xl font-black hover:bg-slate-800 flex items-center justify-center gap-2 text-sm">
-              <span>접수/ 예약</span> <i class="fa-solid fa-arrow-right text-xs"></i>
+                    :disabled="!selectedCard.isReservable"
+                    class="w-full py-3 rounded-2xl font-black flex items-center justify-center gap-2 text-sm transition"
+                    :class="selectedCard.isReservable ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-slate-100 text-slate-400 cursor-not-allowed'">
+              <span>{{ selectedCard.isReservable ? '앱으로 접수/예약' : '앱 접수 미지원 병원' }}</span> 
+              <i v-if="selectedCard.isReservable" class="fa-solid fa-arrow-right text-xs"></i>
             </button>
           </div>
+
         </div>
        </div>
     </div>
-  </div>
+    </div>
 </template>
 
 <script setup>
 import { onMounted, ref, defineExpose, defineEmits, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import api from '@/plugins/axiosinterceptor';
+
 import api from '@/plugins/axiosinterceptor';
 
 
@@ -193,6 +212,10 @@ const isDeptMenuOpen = ref(false);
 const filterOpenOnly = ref(false);
 const sortMode = ref('distance');
 const currentDept = ref('all');
+
+// <접수 가능> 기능 관련 변수 
+const filterReservableOnly = ref(false); // 앱 접수 필터 상태
+const registeredHospitals = ref([]);     // 백엔드에서 받아온 제휴 병원 목록
 
 
 
@@ -225,7 +248,16 @@ const getDepartmentBySymptom = (inputText) => {
   return inputText;
 };
 
-onMounted(() => {
+onMounted(async() => {
+  // 백엔드에서 제휴 병원 목록(placeId, idx) 가져오기
+  try {
+    const res = await api.get('/hospital/list');
+    registeredHospitals.value = res.data; 
+  } catch (error) {
+    console.error('제휴 병원 목록 로딩 실패:', error);
+  }
+
+
   if (!window.kakao || !window.kakao.maps) return;
   window.kakao.maps.load(() => {
     const options = { center: new window.kakao.maps.LatLng(37.5598, 126.9425), level: 4 };
@@ -256,6 +288,7 @@ watch(() => props.mode, (newMode) => {
     currentDept.value = 'all';
     sortMode.value = 'distance';
     filterOpenOnly.value = false;
+    filterReservableOnly.value = false; // 탭 변경 시 접수 필터 초기화
     
     if (newMode === 'pharmacy' && previousHospital.value) {
       performSearchAroundHospital(previousHospital.value);
@@ -324,6 +357,11 @@ const applyFilters = () => {
   }
   if (filterOpenOnly.value) result = result.filter(h => h.isOpen);
   
+  // 접수 체크 시 isReservable인 병원만 남기기
+  if (filterReservableOnly.value) {
+    result = result.filter(h => h.isReservable);
+  }
+
   if (sortMode.value === 'distance') result.sort((a,b) => a.distanceValue - b.distanceValue);
   else if (sortMode.value === 'wait') result.sort((a,b) => a.waitTime - b.waitTime);
   else if (sortMode.value === 'status') { const rank = { "원활": 0, "보통": 1, "혼잡": 2 }; result.sort((a,b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9)); }
@@ -369,6 +407,9 @@ const displayMarkers = (places) => {
 };
 
 const generateRandomData = (place) => {
+  // placeId 찾기 위한 임시 코드
+  console.log("🏥 병원 이름:", place.place_name, " / 🔑 카카오맵 ID:", place.id);
+  
   const isPharmacy = props.mode === 'pharmacy';
   const isOpen = Math.random() > 0.3;
   let statusText = !isOpen ? "영업 종료" : (isPharmacy ? "영업 중" : ["원활", "보통", "혼잡"][Math.floor(Math.random() * 3)]);
@@ -397,12 +438,20 @@ const generateRandomData = (place) => {
     reviews.push({ user: "방문자" + (i+1), text: reviewTexts[Math.floor(Math.random() * reviewTexts.length)], date: "2024.01." + (10 + i), rate: (Math.random() * 2 + 3).toFixed(1) });
   }
 
+  // <접수 가능> 관련 코드
+  const matchedDbHospital = registeredHospitals.value.find(
+    (dbHospital) => dbHospital.placeId === place.id
+  );
+
   return {
     id: place.id, name: place.place_name, lat: place.y, lng: place.x, address: place.road_address_name || place.address_name, phone: place.phone || "02-0000-0000",
     distance: place.distance ? place.distance + "m" : "-", distanceValue: Number(place.distance || 999999), place_url: place.place_url,
     isOpen: isOpen, status: statusText, waitTime: (!isOpen || isPharmacy) ? 0 : Math.floor(Math.random() * 30) + 5,
     waitCount: (!isOpen || isPharmacy) ? 0 : (Math.floor(Math.random() * 10) + 1) + "명", parking: Math.random() > 0.5 ? "여유" : "만차",
-    dept: detailDept, subjects: subjects, doctors: doctors, reviews: reviews, closingSoon: isOpen && Math.random() > 0.8
+    dept: detailDept, subjects: subjects, doctors: doctors, reviews: reviews, closingSoon: isOpen && Math.random() > 0.8,
+
+    isReservable: matchedDbHospital !== undefined, // 명단에 있으면 true(접수 가능)
+    hospitalIdx: matchedDbHospital ? matchedDbHospital.idx : null // 백엔드의 진짜 병원 고유번호
   };
 };
 
@@ -425,36 +474,16 @@ const panToMyLocation = () => {
 
 const openKakaoWay = (h) => window.open(`https://map.kakao.com/link/to/${h.name},${h.lat},${h.lng}`);
 const callHospital = (phone) => window.location.href = `tel:${phone}`;
-const goToPrecheck = async () => {
-  if (!selectedCard.value) return;
 
-  try {
-    // 1. 백엔드에 카카오 병원 정보 전송 및 우리 DB에 동기화
-    const response = await api.post('/api/hospitals/check', {
-      kakaoPlaceId: selectedCard.value.id,
-      name: selectedCard.value.name,
-      address: selectedCard.value.address,
-      phone: selectedCard.value.phone
-    });
-
-    if (response.data.success) {
-      const myDbHospital = response.data.result;
-
-      // 2. 결제창에서 쓰기 위해 로컬 스토리지에 저장
-      localStorage.setItem('selectedHospital', JSON.stringify({
-        idx: myDbHospital.idx,
-        name: myDbHospital.name,
-        deposit: myDbHospital.deposit // 1원
-      }));
-
-      // 3. 문진표 작성 페이지로 이동
-      router.push('/precheck');
-    }
-  } catch (error) {
-    console.error("병원 연동 실패:", error);
-    alert("예약을 진행할 수 없습니다. 다시 시도해 주세요.");
+const goToPrecheck = () => {
+  if (selectedCard.value && selectedCard.value.isReservable) {
+    router.push({
+      path: '/precheck', query: {hospitalIdx: selectedCard.value.hospitalIdx}
+  });
   }
-};
+
+}
+
 
 const openCard = (place) => { selectedCard.value = place; if(map.value) map.value.panTo(new window.kakao.maps.LatLng(place.lat, place.lng)); displayMarkers([place]); emit('select-hospital', place); };
 const closeCard = () => { 
