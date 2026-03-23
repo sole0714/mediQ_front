@@ -15,8 +15,7 @@ const goToMain = () => {
 
 const logout = async () => {
     alert("로그아웃 되었습니다.");
-    await authStore.logout();    
-    window.location.href = '/';
+    await authStore.logout();
 };
 
 const currentTab = ref('medical-history');
@@ -61,10 +60,10 @@ const selectTab = async (tabId) => {
     }
 };
 
-//  백엔드에서 받아올 진짜 일정 데이터 배열 (빈 배열로 초기화)
+// 💡 백엔드에서 받아올 진짜 일정 데이터 배열 (빈 배열로 초기화)
 const hospitalSchedule = ref([]);
 
-//  백엔드(/orders/schedule)에서 결제 완료된 내 일정을 가져오는 함수
+// 💡 백엔드(/orders/schedule)에서 결제 완료된 내 일정을 가져오는 함수
 const fetchSchedule = async () => {
     try {
         const res = await api.get('/orders/schedule');
@@ -88,10 +87,17 @@ const familyMembers = ref([
 ]);
 
 const showModal = ref(false); 
-const newMemberName = ref(''); 
+const newMemberName = ref('');
+const newMemberage = ref('');
+const newMemberbloodtype = ref('');
+const newMemberrelation = ref('');
 
 const openAddModal = () => {
     newMemberName.value = ''; 
+    newMemberage.value = '';
+    newMemberbloodtype.value = '';
+    newMemberrelation.value = '';
+
     showModal.value = true;
 };
 
@@ -99,23 +105,70 @@ const closeAddModal = () => {
     showModal.value = false;
 };
 
-const saveFamilyMember = () => {
+const saveFamilyMember = async () => { // 1. async 추가
+    // 이름 유효성 검사
     if (!newMemberName.value.trim()) {
         alert("이름을 입력해주세요!");
         return;
     }
 
-    const newMember = {
+    // 2. 백엔드로 보낼 데이터 객체 (필드명은 백엔드 API 명세에 맞춰야 합니다)
+    const payload = {
         name: newMemberName.value,
-        icon: '🙂', 
-        iconBg: 'bg-indigo-100',
-        status: '등록됨',
-        statusClass: 'bg-slate-100 text-slate-500',
-        hospital: '진료 기록 없음'
+        age: newMemberage.value,           // 추가된 input 값
+        bloodtype: newMemberbloodtype.value, // 추가된 input 값
+        relation: newMemberrelation.value, // 추가된 input 값
+        icon: '🙂',
+        status: '등록됨'
     };
 
-    familyMembers.value.push(newMember); 
-    closeAddModal(); 
+    try {
+        // 3. 백엔드 서버로 데이터 전송 (POST 요청)
+        // 주소는 백엔드에서 설정한 주소(/mypage/addfamily)를 사용합니다.
+        const res = await api.post('/mypage/addfamily', payload);
+
+        // 4. 서버 저장에 성공했을 때만 화면(UI) 업데이트
+        if (res.data.idx != null){
+            const newMember = {
+                payload, // 입력한 데이터들 포함
+                iconBg: 'bg-indigo-100',
+                statusClass: 'bg-slate-100 text-slate-500',
+                hospital: '진료 기록 없음'
+            };
+
+            familyMembers.value.push(newMember); 
+            closeAddModal();
+            alert("가족 구성원이 등록되었습니다.");
+        }
+    } catch (error) {
+        // 400 에러 등 통신 실패 시 처리
+        console.error("서버 전송 중 에러 발생:", error);
+        alert("서버 전송에 실패했습니다. 입력값을 다시 확인해주세요.");
+    }
+};
+
+// 💡 백엔드에서 가족 리스트를 가져오는 함수
+const fetchFamilyMembers = async () => {
+    try {
+        const res = await api.get('/mypage/addfamily'); 
+        
+        if (res.data.success) {
+            // 서버에서 받아온 데이터를 화면용 형식으로 가공해서 넣기
+            familyMembers.value = res.data.result.map(member => ({
+                name: member.name,
+                age: member.age,
+                bloodtype: member.bloodtype,
+                relation: member.relation,
+                icon: '🙂',
+                iconBg: 'bg-indigo-100',
+                status: '등록됨',
+                statusClass: 'bg-slate-100 text-slate-500',
+                hospital: '진료 기록 없음'
+            }));
+        }
+    } catch (error) {
+        console.error("가족 목록을 불러오는데 실패했습니다:", error);
+    }
 };
 
 const arrowPosition = ref('12.5%');
@@ -156,8 +209,9 @@ onMounted(() => {
 
     if (authStore.isLogin) {
         selectTab('medical-history');
-        //  로그인 되어있으면 일정 불러오기 함수 즉시 실행!
-        fetchSchedule(); 
+        // 💡 로그인 되어있으면 일정 불러오기 함수 즉시 실행!
+        fetchSchedule();
+        fetchFamilyMembers();
     }
 });
 
@@ -457,15 +511,15 @@ onUnmounted(() => {
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1 ml-2">나이</label>
-                        <input v-model="newMemberName" @keyup.enter="saveFamilyMember" type="text" placeholder="예: 만 2세" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
+                        <input v-model="newMemberage" @keyup.enter="saveFamilyMember" type="text" placeholder="예: 2 (만 나이를 숫자만 입력해주세요)" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1 ml-2">혈액형</label>
-                        <input v-model="newMemberName" @keyup.enter="saveFamilyMember" type="text" placeholder="예: A형" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
+                        <input v-model="newMemberbloodtype" @keyup.enter="saveFamilyMember" type="text" placeholder="예: A형" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1 ml-2">관계</label>
-                        <input v-model="newMemberName" @keyup.enter="saveFamilyMember" type="text" placeholder="예: 어머니" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
+                        <input v-model="newMemberrelation" @keyup.enter="saveFamilyMember" type="text" placeholder="예: 어머니" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
                     </div>
                     <div class="grid grid-cols-2 gap-3 pt-2">
                         <button @click="closeAddModal" class="py-3.5 rounded-xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition">취소</button>

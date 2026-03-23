@@ -104,7 +104,8 @@ const saveUserInfo = async () => {
     
     if (response.data.success) {
       alert(response.data.message || '의료 및 개인 정보가 성공적으로 업데이트되었습니다.');
-      router.push('/mypage'); 
+      // router.push('/mypage') 대신 아래 코드로 변경!
+      window.location.href = '/mypage'; 
     } else {
       alert('정보 저장에 실패했습니다: ' + response.data.message);
     }

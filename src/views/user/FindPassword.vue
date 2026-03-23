@@ -1,14 +1,16 @@
 <script setup>
-import { reactive } from 'vue'
-import api from '@/api/user'
+import { reactive, ref } from 'vue'
+import axios from 'axios'
 import { useRouter } from 'vue-router'
-import useAuthStore from '@/stores/useAuthStore'
 
 const router = useRouter()
+
+// 처리 중임을 나타내는 로딩 상태 (버튼 연타 방지)
+const isLoading = ref(false)
+
 const state = reactive({
   email: ''
 })
-
 
 const sendResetEmail = async () => {
     if (!state.email) {
@@ -17,29 +19,34 @@ const sendResetEmail = async () => {
     }
 
     try {
-        console.log("이메일 전송 시도:", state.email);
+        isLoading.value = true;
+        const response = await axios.post('http://localhost:8080/api/find/password/reset', {
+            email: state.email
+        });
 
-        alert("인증 메일을 보냈습니다! 메일함을 확인해주세요.");
-        router.push('/user/login');
-
+        if (response.data.success) {
+            alert("입력하신 이메일로 임시 비밀번호가 발송되었습니다.\n메일함을 확인해주세요!");
+            router.push('/login');
+        } else {
+            alert(response.data.message);
+        }
     } catch (error) {
-        console.error(error);
-        alert("메일 전송에 실패했습니다. 가입된 이메일인지 확인해주세요.");
+        alert(error.response?.data?.message || "메일 전송에 실패했습니다. 가입된 이메일인지 확인해주세요.");
+    } finally {
+        isLoading.value = false;
     }
 }
-
 </script>
 
 <template>
-    <div class="flex items-center justify-center min-h-screen p-6">
-
+<div class="flex items-center justify-center min-h-screen p-6">
     <div class="w-full max-w-md">
         <div class="text-center mb-10">
             <RouterLink to="/" class="inline-block">
                 <img src="@/assets/image/mediQ_logo.png" alt="MediQ Logo" class="w-16 h-16 object-contain mx-auto">
             </RouterLink>
             <h2 class="text-xl font-bold text-slate-900 mt-6">비밀번호 재설정</h2>
-            <p class="text-sm text-slate-500 mt-2">가입하신 이메일 주소로 인증 링크를 보내드립니다.</p>
+            <p class="text-sm text-slate-500 mt-2">가입하신 이메일 주소로 임시 비밀번호를 보내드립니다.</p>
         </div>
 
         <div class="bg-white p-8 rounded-[32px] shadow-xl shadow-slate-100 border border-slate-100">
@@ -52,22 +59,16 @@ const sendResetEmail = async () => {
                     </div>
                 </div>
                 
-                <button type="submit" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition shadow-lg">
-                    인증 메일 보내기
+                <button type="submit" :disabled="isLoading" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition shadow-lg disabled:bg-slate-400">
+                    {{ isLoading ? '메일 발송 중...' : '임시 비밀번호 받기' }}
                 </button>
             </form>
 
             <div class="justify-center text-center mt-8 text-xs font-bold">
-             <RouterLink to="/UserFindId" class="block text-slate-400 hover:text-slate-600 mb-4">이메일이 기억나지 않으시나요?</RouterLink>
-             <RouterLink to="/UserFindId" class="block text-slate-400 hover:text-slate-600 mb-4">아이디 찾기</RouterLink>
+             <RouterLink to="/UserFindId" class="block text-slate-400 hover:text-slate-600 mb-4">이메일이 기억나지 않으시나요? 아이디 찾기</RouterLink>
              <RouterLink to="/login" class="block text-slate-400 hover:text-slate-600">로그인으로 돌아가기</RouterLink>
             </div>
         </div>
     </div>
-
 </div>
 </template>
-
-<style scoped>
-
-</style>
