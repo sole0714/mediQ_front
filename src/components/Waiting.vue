@@ -1,4 +1,5 @@
 <script setup>
+<<<<<<< HEAD
 import { reactive, ref, computed, onMounted, defineProps } from 'vue'
 import axios from 'axios'
 import useAuthStore from '@/stores/useAuthStore';
@@ -8,9 +9,16 @@ const authStore = useAuthStore()
 const currentNickname = computed(() => {
   return authStore.isLogin ? authStore.getUsername() : '사용자'
 })
+=======
+import { reactive, ref, computed, onMounted, defineProps, watch } from 'vue'
+import api from '@/plugins/axiosinterceptor' 
+import useAuthStore from '@/stores/useAuthStore'
+>>>>>>> origin/feat/queueSearch
 
 const props = defineProps(['initialData'])
 const wsUri = "http://localhost:8080/ws/chat";
+
+const authStore = useAuthStore()
 
 let websocket = null
 const connected = ref(false)
@@ -91,6 +99,7 @@ const subscribePush = async () => {
   }
 }
 
+<<<<<<< HEAD
 async function searchHospital() {
   if (!searchKeyword.value) {
     alert("병원 이름을 입력해주세요");
@@ -113,11 +122,54 @@ async function searchHospital() {
       myWaitingDetail.value = null;
       processStep.value = 'review'; 
     }
+=======
+const registeredHospitals = ref([]); // 서버에서 받아온 제휴 병원 목록
+
+onMounted(async () => {
+  authStore.checkLogin();
+  connectWebSocket();
+  
+  try {
+    const res = await api.get('/api/hospitals/list');
+    registeredHospitals.value = res.data;
+
+    console.log("🔥서버에서 받아온 병원 목록:", registeredHospitals.value);
+  
+  } catch (error) {
+    console.error('제휴 병원 목록 로딩 실패:', error);
+  }
+});
+
+
+// 검색 시 서버 목록에 있는지 확인
+async function searchHospital() {
+  if (!searchKeyword.value) return;
+  const normalizedInput = searchKeyword.value.replace(/\s/g, '');
+  const targetHospital = registeredHospitals.value.find(h => 
+    h.name.replace(/\s/g, '').includes(normalizedInput)
+  );
+
+  if (!targetHospital) {
+    alert("MediQ 서비스 제휴 병원이 아닙니다. 이름을 다시 확인해주세요.");
+    return;
+  }
+
+  try {
+    isSearching.value = true;
+    // 실제 서버 DB의 idx를 사용하여 대기열 조회 (병원 이름 대신 고유 ID 사용 권장)
+    const listRes = await api.get(`/waiting/queue/list/${targetHospital.idx}`);
+
+    hospital.name = targetHospital.name;
+    hospital.id = targetHospital.idx; // hospital 객체에 ID 저장
+    hospital.queue = Array.isArray(listRes.data.result) ? listRes.data.result : [];
+
+>>>>>>> origin/feat/queueSearch
   } catch (error) {
     console.error('검색 실패:', error);
   } finally { isSearching.value = false; }
 }
 
+<<<<<<< HEAD
 async function confirmRegistration() {
   if (!hospital.name || hospital.name === '병원을 검색해주세요') return;
   try {
@@ -136,6 +188,19 @@ async function confirmRegistration() {
     }
     window.location.reload();
   } catch (error) { alert('접수 중 오류가 발생했습니다.'); }
+=======
+
+function checkInfo() {
+  if (!hospital.name || hospital.name === '병원을 검색해주세요') {
+    alert('먼저 병원을 검색하여 선택해주세요.')
+    return
+  }
+  if (currentNickname.value.trim().length < 2) {
+    alert('이름은 두 글자 이상 입력하세요')
+    return
+  }
+  processStep.value = 'review'
+>>>>>>> origin/feat/queueSearch
 }
 
 async function cancelQueue() {
@@ -154,9 +219,41 @@ async function cancelQueue() {
   } catch (error) { alert("취소 중 오류 발생"); }
 }
 
+<<<<<<< HEAD
 onMounted(() => { 
   authStore.checkLogin(); 
   connectWebSocket();
+=======
+function cancelQueue() {
+  if (!confirm('대기를 취소하시겠습니까?')) return
+  
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+    websocket.send(JSON.stringify({
+      action: 'cancel',
+      hospital: hospital.id,
+      nickname: currentNickname.value
+    }))
+  }
+
+  removeFromQueue(currentNickname.value)
+  processStep.value = 'input'
+  currentNickname.value = ''
+}
+
+// 뒤로가기
+function backToInput() {
+  processStep.value = 'input'
+}
+
+watch(() => props.initialData, () => {
+  initFromProps()
+}, { deep: true })
+
+
+onMounted(() => {
+  initFromProps()
+  connectWebSocket()
+>>>>>>> origin/feat/queueSearch
 })
 </script>
 
@@ -165,6 +262,7 @@ onMounted(() => {
     <section class="flex-1 p-6 md:p-12 border-r border-slate-200">
       <div class="max-w-md mx-auto">
         
+<<<<<<< HEAD
         <div class="hospital-card bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8">
           <div class="hospital-search-box mb-6">
             <label class="block text-sm font-bold text-slate-700 mb-2">방문할 병원</label>
@@ -177,6 +275,30 @@ onMounted(() => {
                 :disabled="processStep === 'registered'"
               />
               <button @click="searchHospital" class="absolute right-2 p-2 text-slate-500 hover:text-blue-600">
+=======
+        <div class="hospital-card">
+          <div class="hospital-search-box">
+             <label class="search-label">방문할 병원</label>
+             <div class="relative flex items-center">
+              <input 
+                v-model="searchKeyword" 
+                @keyup.enter="searchHospital"
+                list="hospital-options"
+                :disabled="processStep === 'registered'"
+                class="w-full pl-4 pr-12 py-3 bg-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                placeholder="제휴 병원 이름을 입력하세요" 
+              />
+              
+              <datalist id="hospital-options">
+                <option v-for="h in registeredHospitals" :key="h.idx" :value="h.name"></option>
+              </datalist>
+
+              <button 
+                @click="searchHospital" 
+                :disabled="processStep === 'registered'"
+                class="absolute right-2 p-2 text-slate-500 hover:text-blue-600"
+              >
+>>>>>>> origin/feat/queueSearch
                 <i v-if="isSearching" class="fa-solid fa-spinner fa-spin"></i>
                 <i v-else class="fa-solid fa-magnifying-glass"></i>
               </button>
