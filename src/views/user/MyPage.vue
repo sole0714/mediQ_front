@@ -60,10 +60,10 @@ const selectTab = async (tabId) => {
     }
 };
 
-// 💡 백엔드에서 받아올 진짜 일정 데이터 배열 (빈 배열로 초기화)
+//  백엔드에서 받아올 진짜 일정 데이터 배열 (빈 배열로 초기화)
 const hospitalSchedule = ref([]);
 
-// 💡 백엔드(/orders/schedule)에서 결제 완료된 내 일정을 가져오는 함수
+//  백엔드(/orders/schedule)에서 결제 완료된 내 일정을 가져오는 함수
 const fetchSchedule = async () => {
     try {
         const res = await api.get('/orders/schedule');
@@ -155,7 +155,7 @@ onMounted(() => {
 
     if (authStore.isLogin) {
         selectTab('medical-history');
-        // 💡 로그인 되어있으면 일정 불러오기 함수 즉시 실행!
+        //  로그인 되어있으면 일정 불러오기 함수 즉시 실행!
         fetchSchedule(); 
     }
 });
