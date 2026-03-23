@@ -249,7 +249,7 @@ const getDepartmentBySymptom = (inputText) => {
 onMounted(async() => {
   // 백엔드에서 제휴 병원 목록(placeId, idx) 가져오기
   try {
-    const res = await api.get('/hospital/list');
+    const res = await api.get('/api/hospitals/list');
     registeredHospitals.value = res.data; 
   } catch (error) {
     console.error('제휴 병원 목록 로딩 실패:', error);
@@ -344,7 +344,7 @@ const processFinalData = (data, isPharmacyMode) => {
   });
 
   if (filteredData.length === 0) { rawData.value = []; applyFilters(); return; }
-  rawData.value = filteredData.map(place => generateRandomData(place));
+  rawData.value = filteredData.map(kakaoPlace => generateRandomData(kakaoPlace));
   applyFilters();
 };
 
@@ -404,15 +404,15 @@ const displayMarkers = (places) => {
   });
 };
 
-const generateRandomData = (place) => {
-  // placeId 찾기 위한 임시 코드
-  console.log("🏥 병원 이름:", place.place_name, " / 🔑 카카오맵 ID:", place.id);
+const generateRandomData = (kakaoPlace) => {
+  // placeId 찾기 위한 임시 코드(배포 시 삭제)
+  console.log("🏥 병원 이름:", kakaoPlace.place_name, " / 🔑 카카오맵 ID:", kakaoPlace.id);
   
   const isPharmacy = props.mode === 'pharmacy';
   const isOpen = Math.random() > 0.3;
   let statusText = !isOpen ? "영업 종료" : (isPharmacy ? "영업 중" : ["원활", "보통", "혼잡"][Math.floor(Math.random() * 3)]);
 
-  const categoryName = (place.category_name || '').split(' > ').pop() || "장소";
+  const categoryName = (kakaoPlace.category_name || '').split(' > ').pop() || "장소";
   let detailDept = categoryName;
   let subjects = [detailDept];
   if (!isPharmacy && (categoryName.includes("종합") || categoryName === "병원" || categoryName.includes("내과"))) {
@@ -438,15 +438,29 @@ const generateRandomData = (place) => {
 
   // <접수 가능> 관련 코드
   const matchedDbHospital = registeredHospitals.value.find(
-    (dbHospital) => dbHospital.placeId === place.id
+    (dbHospital) => dbHospital.kakaoPlaceId === kakaoPlace.id
   );
 
-  return {
-    id: place.id, name: place.place_name, lat: place.y, lng: place.x, address: place.road_address_name || place.address_name, phone: place.phone || "02-0000-0000",
-    distance: place.distance ? place.distance + "m" : "-", distanceValue: Number(place.distance || 999999), place_url: place.place_url,
-    isOpen: isOpen, status: statusText, waitTime: (!isOpen || isPharmacy) ? 0 : Math.floor(Math.random() * 30) + 5,
-    waitCount: (!isOpen || isPharmacy) ? 0 : (Math.floor(Math.random() * 10) + 1) + "명", parking: Math.random() > 0.5 ? "여유" : "만차",
-    dept: detailDept, subjects: subjects, doctors: doctors, reviews: reviews, closingSoon: isOpen && Math.random() > 0.8,
+return {
+    id: kakaoPlace.id, 
+    name: kakaoPlace.place_name, 
+    lat: kakaoPlace.y, 
+    lng: kakaoPlace.x, 
+    address: kakaoPlace.road_address_name || kakaoPlace.address_name, 
+    phone: kakaoPlace.phone || "02-0000-0000",
+    distance: kakaoPlace.distance ? kakaoPlace.distance + "m" : "-", 
+    distanceValue: Number(kakaoPlace.distance || 999999), 
+    place_url: kakaoPlace.place_url,
+    isOpen: isOpen, 
+    status: statusText, 
+    waitTime: (!isOpen || isPharmacy) ? 0 : Math.floor(Math.random() * 30) + 5,
+    waitCount: (!isOpen || isPharmacy) ? 0 : (Math.floor(Math.random() * 10) + 1) + "명", 
+    parking: Math.random() > 0.5 ? "여유" : "만차",
+    dept: detailDept, 
+    subjects: subjects, 
+    doctors: doctors, 
+    reviews: reviews, 
+    closingSoon: isOpen && Math.random() > 0.8,
 
     isReservable: matchedDbHospital !== undefined, // 명단에 있으면 true(접수 가능)
     hospitalIdx: matchedDbHospital ? matchedDbHospital.idx : null // 백엔드의 진짜 병원 고유번호
