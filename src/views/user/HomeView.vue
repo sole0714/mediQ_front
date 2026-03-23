@@ -110,8 +110,17 @@ onMounted(() => {
   }
   
   authStore.checkLogin();
-  fetchBookmarks();
 });
+
+// 로그인이 확인되는 그 즉시 북마크 목록을 가져오기
+watch(() => authStore.isLogin, (isLogin) => {
+  if (isLogin) {
+    fetchBookmarks();
+  } else {
+    // 로그아웃 상태면 목록을 비움
+    favorites.value = [];
+  }
+}, { immediate: true });
 
 const handleToggleFavorite = async (item) => {
 
