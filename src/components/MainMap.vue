@@ -101,37 +101,46 @@
         </button>
 
         <div v-if="selectedCard" class="fade-in">
-          <div class="flex justify-between items-start mb-4 pr-8">
-            <div class="min-w-0 flex-1">
-              <p class="text-[10px] font-black uppercase tracking-wider mb-1" 
-                 :style="{ color: getColorByStatus(selectedCard.status) }">
-                {{ selectedCard.status }}
-              </p>
+          
+          <div class="flex justify-between items-start mb-5">
+            
+            <div class="min-w-0 flex-1 pr-4">
               
-              <div class="flex items-center gap-2 mt-1 mb-1">
-                <h4 class="text-xl font-black text-slate-900 leading-tight truncate">
-                  {{ selectedCard.name }}
-                </h4>
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <p class="text-[11px] font-black uppercase tracking-wider" 
+                     :style="{ color: getColorByStatus(selectedCard.status) }">
+                    {{ selectedCard.status }}
+                  </p>
+                  <span v-if="selectedCard.isReservable" class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md font-black border border-indigo-100 flex items-center gap-1">
+                    <i class="fa-solid fa-bolt text-amber-500"></i> 접수 가능
+                  </span>
+                </div>
                 
                 <button @click.stop="toggleFavorite(selectedCard)" 
-                        class="shrink-0 px-3 py-1.5 rounded-full border transition flex items-center gap-1.5"
-                        :class="isFavorite(selectedCard) 
-                          ? 'bg-rose-50 border-rose-200 text-rose-500' 
-                          : 'bg-white border-slate-200 text-slate-400 hover:border-rose-200 hover:text-rose-400'">
-                  <i class="text-sm" :class="isFavorite(selectedCard) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
-                  <span class="text-xs font-bold">찜</span>
+                        class="shrink-0 px-2.5 py-1.5 rounded-full border transition flex items-center gap-1 shadow-sm"
+                        :class="isFavorite(selectedCard) ? 'bg-rose-50 border-rose-200 text-rose-500' : 'bg-white border-slate-200 text-slate-400 hover:border-rose-200 hover:text-rose-400'">
+                  <i class="text-xs" :class="isFavorite(selectedCard) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
+                  <span class="text-[10px] font-bold">찜</span>
                 </button>
               </div>
+              
+              <h4 class="text-[22px] font-black text-slate-900 leading-snug break-keep mb-1.5">
+                {{ selectedCard.name }}
+              </h4>
 
-              <p class="text-xs text-slate-500 mt-1">
-                <span class="text-indigo-600 font-bold">{{ selectedCard.dept.split(',')[0] }}</span> | {{ selectedCard.distance }}
+              <p class="text-xs text-slate-500 font-medium">
+                <span class="text-indigo-600 font-bold">{{ selectedCard.dept.split(',')[0] }}</span>
+                <span class="mx-1.5 text-slate-300">|</span> 
+                {{ selectedCard.distance }}
               </p>
             </div>
             
-            <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-2xl text-center min-w-[80px]">
-              <p class="text-[10px] text-slate-500 font-black">대기</p>
-              <p class="text-xl font-black text-slate-900">{{ selectedCard.waitTime }}<span class="text-xs">분</span></p>
+            <div class="shrink-0 bg-slate-50 border border-slate-200 p-3 rounded-2xl text-center min-w-[76px] shadow-sm mt-1">
+              <p class="text-[10px] text-slate-500 font-black mb-0.5">대기</p>
+              <p class="text-2xl font-black text-slate-900 leading-none">{{ selectedCard.waitTime }}<span class="text-xs ml-0.5 font-bold">분</span></p>
             </div>
+
           </div>
 
           <div class="grid grid-cols-3 gap-2 mb-4">
@@ -148,8 +157,7 @@
             </button>
           </div>
 
-<div class="space-y-2">
-            
+          <div class="space-y-2">
             <button v-if="mode === 'hospital'" 
                     @click="searchNearbyPharmacies(selectedCard)" 
                     class="w-full bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-black hover:bg-emerald-200 flex items-center justify-center gap-2 text-sm transition">
@@ -162,14 +170,18 @@
             
             <button v-if="mode === 'hospital'" 
                     @click="goToPrecheck" 
-                    class="w-full bg-slate-900 text-white py-3 rounded-2xl font-black hover:bg-slate-800 flex items-center justify-center gap-2 text-sm">
-              <span>접수/ 예약</span> <i class="fa-solid fa-arrow-right text-xs"></i>
+                    :disabled="!selectedCard.isReservable"
+                    class="w-full py-3 rounded-2xl font-black flex items-center justify-center gap-2 text-sm transition"
+                    :class="selectedCard.isReservable ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-slate-100 text-slate-400 cursor-not-allowed'">
+              <span>{{ selectedCard.isReservable ? '앱으로 접수/예약' : '앱 접수 미지원 병원' }}</span> 
+              <i v-if="selectedCard.isReservable" class="fa-solid fa-arrow-right text-xs"></i>
             </button>
           </div>
+
         </div>
        </div>
     </div>
-  </div>
+    </div>
 </template>
 
 <script setup>
