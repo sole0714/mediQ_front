@@ -187,7 +187,7 @@ const focusPlace = (place) => {
   
   // 여기까지
 
-  if (mapRef.value) mapRef.value.openCard(place);
+  if (mapRef.value) mapRef.value.openCard(enrichedPlace);
 };
 
 const handleSelectPlace = (place) => {
