@@ -59,6 +59,13 @@ const router = createRouter({
       meta: { title: '마이페이지', requiresAuth: true }, // 로그인 필요
       component: () => import('@/views/user/MyPage.vue'),
     },
+
+    {
+      name: 'UserInfoEdit',
+      path: '/mypage/info',
+      meta: { title: '내 정보 수정', requiresAuth: true }, 
+      component: () => import('@/views/user/UserInfoEdit.vue'),
+    },
     
     {
       name: 'notify',
