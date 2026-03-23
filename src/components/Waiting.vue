@@ -1,8 +1,12 @@
 <script setup>
 import { reactive, ref, computed, onMounted, defineProps, watch } from 'vue'
+import api from '@/plugins/axiosinterceptor' 
+import useAuthStore from '@/stores/useAuthStore'
 
 const props = defineProps(['initialData'])
 const wsUri = "wss://www.mediq.kro.kr/ws/chat";
+
+const authStore = useAuthStore()
 
 let websocket = null
 
@@ -100,17 +104,51 @@ function initFromProps() {
   }
 }
 
-function searchHospital() {
-  if (!searchKeyword.value) {
-    alert('병원 이름을 입력해주세요')
-    return
+const registeredHospitals = ref([]); // 서버에서 받아온 제휴 병원 목록
+
+onMounted(async () => {
+  authStore.checkLogin();
+  connectWebSocket();
+  
+  try {
+    const res = await api.get('/api/hospitals/list');
+    registeredHospitals.value = res.data;
+
+    console.log("🔥서버에서 받아온 병원 목록:", registeredHospitals.value);
+  
+  } catch (error) {
+    console.error('제휴 병원 목록 로딩 실패:', error);
   }
-  isSearching.value = true
-  setTimeout(() => {
-    hospital.name = searchKeyword.value
-    isSearching.value = false
-  }, 500)
+});
+
+
+// 검색 시 서버 목록에 있는지 확인
+async function searchHospital() {
+  if (!searchKeyword.value) return;
+  const normalizedInput = searchKeyword.value.replace(/\s/g, '');
+  const targetHospital = registeredHospitals.value.find(h => 
+    h.name.replace(/\s/g, '').includes(normalizedInput)
+  );
+
+  if (!targetHospital) {
+    alert("MediQ 서비스 제휴 병원이 아닙니다. 이름을 다시 확인해주세요.");
+    return;
+  }
+
+  try {
+    isSearching.value = true;
+    // 실제 서버 DB의 idx를 사용하여 대기열 조회 (병원 이름 대신 고유 ID 사용 권장)
+    const listRes = await api.get(`/waiting/queue/list/${targetHospital.idx}`);
+
+    hospital.name = targetHospital.name;
+    hospital.id = targetHospital.idx; // hospital 객체에 ID 저장
+    hospital.queue = Array.isArray(listRes.data.result) ? listRes.data.result : [];
+
+  } catch (error) {
+    console.error('검색 실패:', error);
+  } finally { isSearching.value = false; }
 }
+
 
 function checkInfo() {
   if (!hospital.name || hospital.name === '병원을 검색해주세요') {
@@ -161,13 +199,9 @@ function backToInput() {
   processStep.value = 'input'
 }
 
-function setNickname() {
-  if (currentNickname.value.trim().length < 2) {
-    alert('이름은 두 글자 이상 입력하세요')
-    return
-  }
-  nicknameConfirmed.value = true
-}
+watch(() => props.initialData, () => {
+  initFromProps()
+}, { deep: true })
 
 
 onMounted(() => {
@@ -188,18 +222,29 @@ watch(() => props.initialData, () => {
         <div class="hospital-card">
           <div class="hospital-search-box">
              <label class="search-label">방문할 병원</label>
-             <div class="search-input-group">
-               <input 
-                 v-model="searchKeyword" 
-                 @keyup.enter="searchHospital"
-                 placeholder="병원 이름 검색..." 
-                 :disabled="processStep === 'registered'"
-               />
-               <button @click="searchHospital" :disabled="processStep === 'registered'" class="btn-search">
-                 <i v-if="isSearching" class="fa-solid fa-spinner fa-spin"></i>
-                 <i v-else class="fa-solid fa-magnifying-glass"></i>
-               </button>
-             </div>
+             <div class="relative flex items-center">
+              <input 
+                v-model="searchKeyword" 
+                @keyup.enter="searchHospital"
+                list="hospital-options"
+                :disabled="processStep === 'registered'"
+                class="w-full pl-4 pr-12 py-3 bg-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                placeholder="제휴 병원 이름을 입력하세요" 
+              />
+              
+              <datalist id="hospital-options">
+                <option v-for="h in registeredHospitals" :key="h.idx" :value="h.name"></option>
+              </datalist>
+
+              <button 
+                @click="searchHospital" 
+                :disabled="processStep === 'registered'"
+                class="absolute right-2 p-2 text-slate-500 hover:text-blue-600"
+              >
+                <i v-if="isSearching" class="fa-solid fa-spinner fa-spin"></i>
+                <i v-else class="fa-solid fa-magnifying-glass"></i>
+              </button>
+            </div>
           </div>
           
           <div class="hospital-display mt-4">

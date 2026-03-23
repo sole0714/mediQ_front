@@ -250,7 +250,7 @@ const getDepartmentBySymptom = (inputText) => {
 onMounted(async() => {
   // 백엔드에서 제휴 병원 목록(placeId, idx) 가져오기
   try {
-    const res = await api.get('/hospital/list');
+    const res = await api.get('/api/hospitals/list');
     registeredHospitals.value = res.data; 
   } catch (error) {
     console.error('제휴 병원 목록 로딩 실패:', error);
