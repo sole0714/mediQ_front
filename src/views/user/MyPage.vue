@@ -15,7 +15,8 @@ const goToMain = () => {
 
 const logout = async () => {
     alert("로그아웃 되었습니다.");
-    await authStore.logout();
+    await authStore.logout();    
+    window.location.href = '/';
 };
 
 const currentTab = ref('medical-history');
@@ -447,12 +448,24 @@ onUnmounted(() => {
                         <i class="fa-solid fa-user-plus"></i>
                     </div>
                     <h3 class="text-xl font-bold text-slate-900">가족 구성원 추가</h3>
-                    <p class="text-sm text-slate-500 mt-2">등록할 가족의 이름을 입력해주세요.</p>
+                    <p class="text-sm text-slate-500 mt-2">등록할 가족의 정보를 입력해주세요.</p>
                 </div>
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1 ml-2">이름</label>
-                        <input v-model="newMemberName" @keyup.enter="saveFamilyMember" type="text" placeholder="예: 이성계" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
+                        <input v-model="newMemberName" @keyup.enter="saveFamilyMember" type="text" placeholder="예: 홍길동" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 ml-2">나이</label>
+                        <input v-model="newMemberName" @keyup.enter="saveFamilyMember" type="text" placeholder="예: 만 2세" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 ml-2">혈액형</label>
+                        <input v-model="newMemberName" @keyup.enter="saveFamilyMember" type="text" placeholder="예: A형" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1 ml-2">관계</label>
+                        <input v-model="newMemberName" @keyup.enter="saveFamilyMember" type="text" placeholder="예: 어머니" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition font-bold text-slate-800" autoFocus>
                     </div>
                     <div class="grid grid-cols-2 gap-3 pt-2">
                         <button @click="closeAddModal" class="py-3.5 rounded-xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition">취소</button>
