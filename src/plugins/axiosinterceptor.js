@@ -2,11 +2,7 @@ import axios from 'axios'
 import router from '@/router'
 
 const api = axios.create({
-<<<<<<< HEAD
-  baseURL: 'http://localhost:8080', 
-=======
   baseURL: 'http://localhost:8080',
->>>>>>> origin/feat/queueSearch
   timeout: 5000,
   withCredentials: true 
 })
