@@ -189,8 +189,6 @@ import { onMounted, ref, defineExpose, defineEmits, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/plugins/axiosinterceptor';
 
-import api from '@/plugins/axiosinterceptor';
-
 
 // props로 mode 받기
 const props = defineProps(['favorites', 'mode']);
