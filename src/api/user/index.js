@@ -35,4 +35,10 @@ const logout = async () => {
   return res
 }
 
-export default { login, hospitalLogin, hospitalSignup, signup, profile, logout }
+const addfamily = async () => {
+  const res = await api.post('/mypage/addfamily');
+  return res
+}
+        
+
+export default { login, hospitalLogin, hospitalSignup, signup, profile, logout, addfamily }

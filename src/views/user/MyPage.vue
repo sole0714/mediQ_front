@@ -128,7 +128,8 @@ const saveFamilyMember = async () => { // 1. async 추가
         const res = await api.post('/mypage/addfamily', payload);
 
         // 4. 서버 저장에 성공했을 때만 화면(UI) 업데이트
-        if (res.data.idx != null){
+
+        if (res.data.idx != null) {
             const newMember = {
                 payload, // 입력한 데이터들 포함
                 iconBg: 'bg-indigo-100',
