@@ -269,8 +269,6 @@ async function cancelQueue() {
 </template>
 
 <style scoped>
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
-@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&display=swap');
 .btn-blue-push {
   width: 100%;
   padding: 16px;

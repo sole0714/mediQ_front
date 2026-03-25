@@ -1,14 +1,13 @@
-
-import './assets/style.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
 
-import '@/assets/css/Header.css'
 
 const app = createApp(App)
+
+app.config.devtools = true
 
 app.use(createPinia())
 app.use(router)
